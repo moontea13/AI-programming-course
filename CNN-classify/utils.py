@@ -36,26 +36,35 @@ def ensure_dirs(*dirs: str) -> None:
 
 
 def write_training_log(rows, output_path: str) -> None:
-    fieldnames = ["epoch", "train_loss", "train_acc", "test_loss", "test_acc"]
+    fieldnames = ["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "test_loss", "test_acc"]
     with open(output_path, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
 
-def plot_curves(rows, output_dir: str) -> None:
+def plot_curves(rows, output_dir: str, method: str = "") -> None:
     epochs = [row["epoch"] for row in rows]
     train_loss = [row["train_loss"] for row in rows]
-    test_loss = [row["test_loss"] for row in rows]
     train_acc = [row["train_acc"] for row in rows]
-    test_acc = [row["test_acc"] for row in rows]
+
+    # Use val if test not recorded, otherwise test
+    has_test = any(row.get("test_loss") not in (None, "") for row in rows)
+    eval_loss_key = "test_loss" if has_test else "val_loss"
+    eval_acc_key = "test_acc" if has_test else "val_acc"
+    eval_label = "Test" if has_test else "Val"
+
+    eval_loss = [row.get(eval_loss_key) or float("nan") for row in rows]
+    eval_acc = [row.get(eval_acc_key) or float("nan") for row in rows]
+
+    title_suffix = f" - {method}" if method else ""
 
     plt.figure(figsize=(8, 5))
     plt.plot(epochs, train_loss, marker="o", label="Train Loss")
-    plt.plot(epochs, test_loss, marker="o", label="Test Loss")
+    plt.plot(epochs, eval_loss, marker="o", label=f"{eval_label} Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title("CIFAR-10 Baseline Loss")
+    plt.title(f"CIFAR-10 Loss{title_suffix}")
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -64,10 +73,10 @@ def plot_curves(rows, output_dir: str) -> None:
 
     plt.figure(figsize=(8, 5))
     plt.plot(epochs, train_acc, marker="o", label="Train Accuracy")
-    plt.plot(epochs, test_acc, marker="o", label="Test Accuracy")
+    plt.plot(epochs, eval_acc, marker="o", label=f"{eval_label} Accuracy")
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy")
-    plt.title("CIFAR-10 Baseline Accuracy")
+    plt.title(f"CIFAR-10 Accuracy{title_suffix}")
     plt.ylim(0, 1)
     plt.grid(True, alpha=0.3)
     plt.legend()

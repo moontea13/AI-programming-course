@@ -1,0 +1,29 @@
+# SimpleCNN baseline config
+method: simple_cnn
+
+model:
+  name: SimpleCNN
+  params:
+    num_classes: 10
+    dropout: 0.5
+
+training:
+  epochs: 10
+  batch_size: 64
+  seed: 42
+  num_workers: 0
+  val_split: 0.1
+
+optimizer:
+  name: adam
+  lr: 0.001
+
+scheduler:
+  name: none
+
+early_stopping:
+  patience: 10
+  min_delta: 0.0
+
+data:
+  dir: dataset

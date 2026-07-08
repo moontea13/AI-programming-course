@@ -1,0 +1,18 @@
+# Dataset
+dataset/
+data/
+
+# Model checkpoints (too large, can be regenerated)
+checkpoints/
+
+# Tuning temp files
+results/tuning_summary.csv
+results/*/tune_*/
+results/*/fold_*/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store

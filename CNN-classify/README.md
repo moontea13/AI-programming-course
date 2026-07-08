@@ -1,56 +1,210 @@
-# 实验一 场景分类实践：CIFAR-10 CNN Baseline
+# 实验一 场景分类实践：CIFAR-10 CNN 多方法对比
 
-本目录是深度学习课程作业的 CIFAR-10 图像分类 baseline 实验。实验使用 PyTorch 和 torchvision 搭建一个简单 CNN，完成数据下载、模型训练、测试集评估、曲线绘制、混淆矩阵生成和最佳模型保存。
+本目录是深度学习课程作业的 CIFAR-10 图像分类实验。实验使用 PyTorch 和 torchvision，通过 YAML 配置 + 命令行参数的方式，支持多种 CNN 方法的快速切换与对比，具备验证集划分、早停机制、k-fold 交叉验证和自动化调参功能。
 
-## 实验目的
+## 实验任务
 
-搭建一个结构简单、指标完整、结果可复现的 CNN baseline，明确 CIFAR-10 数据划分、训练参数、评价指标和输出文件，为后续调参、消融实验和多方法对比提供基准结果。
+搭建多种 CNN 结构的图像分类模型，在 CIFAR-10 数据集上进行训练和评估，对比不同方法在分类准确率、收敛速度等方面的表现，为后续调参和消融实验提供基准。
 
-## 安装依赖
+- 数据集：CIFAR-10（10 类，32x32 RGB，训练集 50,000 / 测试集 10,000）
+- 评价指标：Training/Validation Loss、Training/Validation Accuracy、Test Accuracy、混淆矩阵
+- 输出：训练日志（CSV）、loss/accuracy 曲线、混淆矩阵、最佳模型 checkpoint
 
-```powershell
+## 目录结构
+
+```
+CNN-classify/
+├── configs/                  # YAML 配置文件（每个方法一个）
+│   ├── simple_cnn.yaml       # SimpleCNN 基线
+│   ├── resnet20.yaml         # ResNet-20
+│   └── vgg16_bn.yaml         # VGG16-BN
+├── dataset/                  # 共享数据集目录（所有方法共用）
+│   └── cifar-10-batches-py/
+├── checkpoints/
+│   └── <method_name>/        # 按方法名分目录存放模型
+│       └── best_model.pth
+├── results/
+│   └── <method_name>/        # 按方法名分目录存放结果
+│       ├── accuracy_curve.png
+│       ├── confusion_matrix.png
+│       ├── loss_curve.png
+│       └── training_log.csv
+├── model.py                  # 所有模型定义 + MODEL_REGISTRY 注册表
+├── train.py                  # 训练入口（argparse + YAML 驱动）
+├── tune.py                   # 自动化调参脚本
+├── utils.py                  # 工具函数（seed、日志、绘图）
+├── HANDOFF.md                # 协作交接文档
+└── requirements.txt
+```
+
+## 使用方式
+
+### 安装依赖
+
+```bash
 pip install -r requirements.txt
 ```
 
-如果本机已经安装 PyTorch 和 torchvision，可以直接运行训练脚本。
+### 运行训练
 
-## 运行训练
+通过 YAML 配置文件驱动所有参数，支持命令行覆盖：
 
-Smoke test：
+```bash
+# 各方法的默认配置训练
+python train.py --config configs/simple_cnn.yaml     # SimpleCNN 基线 (10 epochs, Adam)
+python train.py --config configs/resnet20.yaml       # ResNet-20 (150 epochs, SGD + StepLR)
+python train.py --config configs/vgg16_bn.yaml       # VGG16-BN (150 epochs, SGD + StepLR)
 
-```powershell
-python train.py --epochs 3
+# 命令行覆盖参数（快速调参，不需修改 yaml）
+python train.py --config configs/resnet20.yaml --epochs 50 --lr 0.01
+
+# k-fold 交叉验证（用于评估稳定性）
+python train.py --config configs/simple_cnn.yaml --k-fold 5
 ```
 
-正式 baseline：
+### 自动化调参
 
-```powershell
-python train.py --epochs 10
+```bash
+# 快速调参（验证集模式，每种方法随机采样 8 组参数）
+python tune.py --method simple_cnn --tune-epochs 20 --trials 8
+
+# 全量网格搜索 + 5-fold 交叉验证（更准确但更慢）
+python tune.py --method resnet20 --tune-epochs 30 --k-fold 5
+
+# 对所有方法调参
+python tune.py --method all --tune-epochs 30 --trials 12
+
+# 调参结果自动保存到 results/tuning_summary.csv
 ```
 
-脚本会自动选择设备：CUDA 可用时使用 GPU，否则使用 CPU。
+调参时会自动为每组参数生成临时配置并运行训练，最终输出按验证集准确率排序的汇总表。
+
+### 切换不同方法
+
+1. 在 `configs/` 下为每个方法新建一个 YAML 配置文件，示例：
+
+```yaml
+# configs/my_new_method.yaml
+method: my_new_method
+
+model:
+  name: MyNewCNN
+  params:
+    num_classes: 10
+    dropout: 0.3
+
+training:
+  epochs: 20
+  batch_size: 128
+  seed: 42
+  num_workers: 0
+  val_split: 0.1             # 验证集比例（10%）
+
+optimizer:
+  name: sgd                   # adam 或 sgd
+  lr: 0.1
+  momentum: 0.9               # 仅 sgd 有效
+  weight_decay: 0.0001        # 仅 sgd 有效
+
+scheduler:
+  name: step                  # none 或 step
+  step_size: 40
+  gamma: 0.1
+
+early_stopping:
+  patience: 20                # 连续 N 轮 val_acc 不提升则停止
+  min_delta: 0.001            # 最小提升阈值
+
+data:
+  dir: dataset
+```
+
+2. 在 `model.py` 中定义新模型类，并在 `MODEL_REGISTRY` 中注册：
+
+```python
+MODEL_REGISTRY = {
+    "SimpleCNN": SimpleCNN,
+    "ResNet20": ResNet20,
+    "VGG16BN": VGG16BN,
+    "MyNewCNN": MyNewCNN,      # 添加新模型
+}
+```
+
+3. 运行新方法：
+
+```bash
+python train.py --config configs/my_new_method.yaml
+```
+
+### 配置文件参数说明
+
+| 配置段 | 参数 | 说明 |
+| --- | --- | --- |
+| `method` | — | 方法名，决定 checkpoints/results 子目录 |
+| `model` | `name` | 模型类名，需在 MODEL_REGISTRY 中注册 |
+| `model` | `params` | 模型初始化参数（如 num_classes, dropout） |
+| `training` | `epochs` | 训练总轮数 |
+| `training` | `batch_size` | 批次大小 |
+| `training` | `val_split` | 验证集占比（0~1），0 表示不使用验证集 |
+| `optimizer` | `name` | 优化器类型：adam 或 sgd |
+| `optimizer` | `lr` | 学习率 |
+| `optimizer` | `momentum` | SGD 动量（仅 sgd） |
+| `optimizer` | `weight_decay` | 权重衰减（仅 sgd） |
+| `scheduler` | `name` | 学习率调度器：none 或 step |
+| `scheduler` | `step_size` | StepLR 衰减周期 |
+| `scheduler` | `gamma` | StepLR 衰减系数 |
+| `early_stopping` | `patience` | 早停耐心值（轮数） |
+| `early_stopping` | `min_delta` | 最小提升阈值 |
+| `data` | `dir` | 数据集根目录（所有方法共享） |
+
+### 命令行参数说明
+
+| 参数 | 说明 |
+| --- | --- |
+| `--config` | **必填**，YAML 配置文件路径 |
+| `--epochs` | 覆盖配置文件中的训练轮数 |
+| `--batch-size` | 覆盖配置文件中的 batch size |
+| `--lr` | 覆盖配置文件中的学习率 |
+| `--seed` | 覆盖配置文件中的随机种子 |
+| `--k-fold` | k-fold 交叉验证（如 `--k-fold 5`） |
 
 ## 数据集说明
 
-使用 `torchvision.datasets.CIFAR10` 自动下载 CIFAR-10：
+使用 `torchvision.datasets.CIFAR10` 自动下载 CIFAR-10 到 `dataset/` 目录（所有方法共享，该目录不需要提交到仓库）。
 
-- `train=True`：训练集，50,000 张图片
-- `train=False`：测试集，10,000 张图片
-- 图片大小：32 x 32，RGB 三通道
-- 类别数：10 类
+数据预处理（所有方法统一）：
 
-数据预处理：
+- 训练集：`RandomCrop(32, padding=4)` → `RandomHorizontalFlip` → `ToTensor` → `Normalize(mean=(0.4914,0.4822,0.4465), std=(0.2470,0.2435,0.2616))`
+- 验证集/测试集：`ToTensor` → 同上 Normalize
 
-- 训练集：`RandomHorizontalFlip`、`ToTensor`、CIFAR-10 常用 `Normalize`
-- 测试集：`ToTensor`、CIFAR-10 常用 `Normalize`
+> 说明：由于默认官方源在当前网络环境中出现 SSL 握手失败，训练脚本将 CIFAR-10 下载 URL 指向同名数据包镜像 `https://dataset.bj.bcebos.com/cifar/cifar-10-python.tar.gz`。
 
-数据会下载到 `data/`，该目录不需要提交到仓库。
+## 方法介绍
 
-说明：训练脚本仍使用 `torchvision.datasets.CIFAR10` 读取和校验数据；由于默认官方源在当前网络环境中出现 SSL 握手失败，脚本将 CIFAR-10 下载 URL 指向同名数据包镜像。
+目前共实现 3 种方法：
 
-## 模型结构
+| 方法 | 模型 | 参数量 | 优化器 | Scheduler | 验证集 | 早停 | 备注 |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| SimpleCNN | 3 Conv + 2 FC | 620K | Adam, lr=0.001 | 无 | 10% | patience=10 | 基线（已完成） |
+| ResNet20 | 20 层残差网络 | 272K | SGD, lr=0.1, momentum=0.9, wd=1e-4 | StepLR(40, 0.1) | 10% | patience=20 | **待训练** |
+| VGG16-BN | 13 Conv + 3 FC (含 BN) | 15.2M | SGD, lr=0.05, momentum=0.9, wd=5e-4 | StepLR(40, 0.1) | 10% | patience=20 | **待训练** |
 
-模型文件：`model.py`
+<!-- 实验结果总览占位：完成全部训练后请替换为真实数据 -->
+| 方法 | Best Val Acc | Best Test Acc | Best Epoch | 训练时间 | 备注 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| SimpleCNN | — | **79.05%** | 9 | — | 完整训练已完成 |
+| ResNet20 | — | — | — | — | 待训练 |
+| VGG16-BN | — | — | — | — | 待训练 |
+
+> **报告提示**：完成 ResNet20 和 VGG16-BN 的完整训练后，请更新上表中的 Best Val/Test Acc、Best Epoch 和训练时间。SimpleCNN 由上一批同学完成，未记录 val acc，可重新运行获取。
+
+---
+
+### SimpleCNN（基线） ✅ 已完成
+
+> 以下内容来自初版实验文档，由上一批合作者撰写并完成训练。
+
+**模型结构：**
 
 ```text
 Conv2d(3 -> 32) -> ReLU -> MaxPool
@@ -61,43 +215,31 @@ Linear(128*4*4 -> 256) -> ReLU -> Dropout
 Linear(256 -> 10)
 ```
 
-## 训练参数
+三层卷积（通道数 32→64→128）+ 两层全连接，参数量 620K，最后一层输出 10 类 logits。
+
+**设计思路：** 作为最简单的 CNN baseline，使用逐步加深的卷积层提取特征，配合 Dropout 防止过拟合。
+
+**问题分析：**
+
+- 模型结构较浅，特征提取能力有限，在 CIFAR-10 上约 79% 准确率后难以继续提升。
+- 缺乏 BatchNorm，深层梯度传播不够稳定。
+- 原始版本数据增强仅使用了 RandomHorizontalFlip，当前版本已统一升级为 RandomCrop + RandomHorizontalFlip。
+
+**优势：**
+
+- 结构简单，训练快速，适合作为 baseline 对比。
+- 代码清晰，指标完整，结果可复现。
+
+**训练参数：**
 
 - Loss：`CrossEntropyLoss`
-- Optimizer：`Adam`
-- Learning rate：`0.001`
-- Batch size：`64`
-- Epoch：先 3 轮 smoke test，再 10 轮 baseline
-- Device：自动选择 `cuda` 或 `cpu`
+- Optimizer：`Adam`，lr = 0.001
+- Scheduler：无
+- Epochs：10 | Batch size：64
+- 数据增强：RandomHorizontalFlip（初版）
+- Device：NVIDIA GeForce RTX 4080 Laptop GPU
 
-## 评价指标
-
-每个 epoch 输出：
-
-- Train Loss
-- Train Accuracy
-- Test Loss
-- Test Accuracy
-
-输出格式：
-
-```text
-Epoch [x/y] Train Loss, Train Acc, Test Loss, Test Acc
-```
-
-## 实验结果
-
-实验环境：
-
-- PyTorch：`2.11.0+cu128`
-- torchvision：`0.26.0+cu128`
-- CUDA：可用
-- GPU：`NVIDIA GeForce RTX 4080 Laptop GPU`
-- 命令：`python train.py --epochs 10`
-- 最佳测试集准确率：`0.7905`，即 `79.05%`
-- 最佳 epoch：第 `9` 轮
-
-10 轮训练日志：
+**实验结果（初版，无验证集划分）：**
 
 | Epoch | Train Loss | Train Acc | Test Loss | Test Acc |
 | --- | ---: | ---: | ---: | ---: |
@@ -112,24 +254,160 @@ Epoch [x/y] Train Loss, Train Acc, Test Loss, Test Acc
 | 9 | 0.578846 | 0.80070 | 0.633623 | 0.7905 |
 | 10 | 0.547311 | 0.81150 | 0.658239 | 0.7796 |
 
+- 最佳 Test Accuracy：**0.7905（epoch 9）**
+- 实验环境：PyTorch 2.11.0+cu128, torchvision 0.26.0+cu128, NVIDIA GeForce RTX 4080 Laptop GPU
+
+> **注意**：该结果为初版实验产出（数据增强仅含 RandomHorizontalFlip），当前代码已统一增加 RandomCrop(32, padding=4)，重新运行结果可能略有不同。调参脚本 `tune.py` 也支持对 SimpleCNN 进行快速调参（约 3 分钟可完成 8 组参数搜索）。
+
+---
+
+### ResNet20 ⏳ 待训练
+
+**模型结构：**
+
+ResNet-20 是 He et al. (2016) 提出的深度残差网络在 CIFAR-10 上的轻量版本。由 1 个初始卷积层 + 3 个 stage（各含 3 个 BasicBlock，共 18 层卷积）+ 1 个全连接层组成，总计 20 层。
+
+```text
+Conv2d(3 -> 16, 3x3) -> BN -> ReLU
+Stage1: [BasicBlock(16, 16)] x3   (32x32 feature map)
+Stage2: [BasicBlock(16, 32)] x3   (16x16, 首块 stride=2)
+Stage3: [BasicBlock(32, 64)] x3   (8x8,  首块 stride=2)
+AdaptiveAvgPool -> FC(64 -> 10)
+```
+
+每个 BasicBlock 由两层 3x3 Conv + BN + ReLU 组成，并包含 identity shortcut 连接。当通道数变化或 stride ≠ 1 时，shortcut 使用 1x1 Conv 对齐维度。
+
+**改进点 / 设计思路：**
+
+- **残差连接**：通过 shortcut 将输入直接加到输出，解决深层网络中的梯度消失问题，使 20 层网络能够有效训练。
+- **Batch Normalization**：每层卷积后加入 BN，稳定训练过程中的激活分布，加速收敛。
+- **CIFAR-10 适配**：将标准 ResNet 的 7x7 初始卷积替换为 3x3，移除初始 MaxPool，保留更多空间信息以适配 32x32 的小尺寸输入。
+
+**问题分析：**
+
+- 对 CIFAR-10 而言，ResNet-20 的参数量（272K）偏少，表达能力受限于模型容量而非深度，可能需要 ResNet-44 或 ResNet-56 才能充分发挥残差学习的优势。
+- SGD 的学习率调度（step decay）需要合理设置 milestones，否则容易欠拟合或震荡。
+
+**优势：**
+
+- 相比 SimpleCNN，在相同训练条件下预期有更好的收敛性和泛化能力。
+- 参数量仅 272K（不到 SimpleCNN 的一半），训练和推理效率高，适合快速实验。
+- 是 CIFAR-10 上的经典 baseline，便于与其他工作的结果对比。
+
+**训练参数：**
+
+- Loss：`CrossEntropyLoss`
+- Optimizer：`SGD`，lr = 0.1，momentum = 0.9，weight_decay = 1e-4
+- Scheduler：`StepLR(step_size=40, gamma=0.1)` —— 每 40 个 epoch 将 lr 衰减为原来的 0.1
+- Epochs：150 | Batch size：128
+- 验证集：10% | 早停：patience=20
+
+<!-- 实验结果占位：完成训练后请填充
+**实验结果：**
+
+| Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
+| --- | ---: | ---: | ---: | ---: |
+| ... | ... | ... | ... | ... |
+
+- 最佳 Val Accuracy：**X.XXXX（epoch X）**
+- 对应 Test Accuracy：**X.XXXX**
+- 训练时间：X 小时
+-->
+
+> **报告提示**：运行 `python train.py --config configs/resnet20.yaml` 完成 150 轮训练后，填充实验结果表格并更新方法总览表。建议先用 `python tune.py --method resnet20 --tune-epochs 30 --trials 8` 快速调参（约 20 分钟），找到最佳 lr 和 weight_decay 后再完整训练。
+
+---
+
+### VGG16-BN ⏳ 待训练
+
+**模型结构：**
+
+VGG16-BN 是 Simonyan & Zisserman (2015) 提出的经典深度卷积网络，在每层卷积后加入 Batch Normalization。对于 CIFAR-10（32x32 输入），经过 5 次 MaxPool 后特征图缩为 1x1。
+
+```text
+Conv2d(3 -> 64, 3x3) -> BN -> ReLU
+Conv2d(64 -> 64, 3x3) -> BN -> ReLU -> MaxPool
+Conv2d(64 -> 128, 3x3) -> BN -> ReLU
+Conv2d(128 -> 128, 3x3) -> BN -> ReLU -> MaxPool
+Conv2d(128 -> 256, 3x3) -> BN -> ReLU
+Conv2d(256 -> 256, 3x3) -> BN -> ReLU
+Conv2d(256 -> 256, 3x3) -> BN -> ReLU -> MaxPool
+Conv2d(256 -> 512, 3x3) -> BN -> ReLU
+Conv2d(512 -> 512, 3x3) -> BN -> ReLU
+Conv2d(512 -> 512, 3x3) -> BN -> ReLU -> MaxPool
+Conv2d(512 -> 512, 3x3) -> BN -> ReLU
+Conv2d(512 -> 512, 3x3) -> BN -> ReLU
+Conv2d(512 -> 512, 3x3) -> BN -> ReLU -> MaxPool
+Flatten
+FC(512 -> 512) -> ReLU -> Dropout
+FC(512 -> 512) -> ReLU -> Dropout
+FC(512 -> 10)
+```
+
+共 13 层卷积（5 个 stage，通道数 64→128→256→512→512）+ 3 层全连接，每层卷积后含 BatchNorm + ReLU，总参数量约 15.2M。
+
+**改进点 / 设计思路：**
+
+- **深层小卷积核**：全部使用 3x3 卷积核，堆叠多层小卷积核获得与 7x7 卷积核相同的感受野，但参数量更少、非线性更强。
+- **Batch Normalization**：在每层卷积后加入 BN，使训练更稳定，允许使用更大的学习率，并起到一定正则化作用。
+- **渐进式通道数加倍**：随着空间尺寸减半（MaxPool），通道数翻倍，保持计算量在各 stage 间相对均衡。
+
+**问题分析：**
+
+- 参数量极大（15.2M），是 ResNet-20 的 56 倍，训练和推理速度慢，显存占用高。在 CPU 上单轮训练约需 5 分钟以上，建议使用 GPU。
+- 全连接层参数量大（512×512×2 ≈ 0.5M），容易过拟合，Dropout 是必须的。
+- 对 CIFAR-10 来说模型容量过剩，可能在训练集上快速达到很高准确率，但泛化能力受限于正则化强度。
+- 5 次 MaxPool 后将 32x32 缩到 1x1，刚好匹配，但损失了大量空间信息。
+
+**优势：**
+
+- 结构规整、实现简单，是深度卷积网络设计思路的经典代表。
+- BN 的加入显著改善了深层网络的训练稳定性。
+- 预期在 CIFAR-10 上可以达到 93%+ 的测试准确率。
+- 在深度学习教学中是必学的经典架构，理解它的设计思路对后续学习很有帮助。
+
+**训练参数：**
+
+- Loss：`CrossEntropyLoss`
+- Optimizer：`SGD`，lr = 0.05，momentum = 0.9，weight_decay = 5e-4
+- Scheduler：`StepLR(step_size=40, gamma=0.1)` —— 每 40 个 epoch 将 lr 衰减为原来的 0.1
+- Epochs：150 | Batch size：128
+- 验证集：10% | 早停：patience=20
+
+<!-- 实验结果占位：完成训练后请填充
+**实验结果：**
+
+| Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
+| --- | ---: | ---: | ---: | ---: |
+| ... | ... | ... | ... | ... |
+
+- 最佳 Val Accuracy：**X.XXXX（epoch X）**
+- 对应 Test Accuracy：**X.XXXX**
+- 训练时间：X 小时
+-->
+
+> **报告提示**：由于 VGG16-BN 训练速度较慢，建议先跑 `python tune.py --method vgg16_bn --tune-epochs 20 --trials 6` 快速验证参数（约 1 小时），找到最佳 lr 和 weight_decay 后再完整训练。完整 150 轮在 GPU 上约需 2-3 小时。如果有 GPU 资源，请优先把这个方法跑完。
+
+---
+
 ## 输出文件说明
 
-- `results/training_log.csv`：每轮训练和测试指标
-- `results/loss_curve.png`：训练/测试 loss 曲线
-- `results/accuracy_curve.png`：训练/测试 accuracy 曲线
-- `results/confusion_matrix.png`：测试集混淆矩阵
-- `checkpoints/best_model.pth`：测试集 accuracy 最好的模型参数
+每个方法的输出独立存放在 `results/<method_name>/` 和 `checkpoints/<method_name>/` 下：
 
-## 后续调参方向
+- `training_log.csv`：每轮训练和验证指标（epoch, train_loss, train_acc, val_loss, val_acc）
+- `loss_curve.png`：训练/验证 loss 曲线
+- `accuracy_curve.png`：训练/验证 accuracy 曲线
+- `confusion_matrix.png`：测试集混淆矩阵（基于最佳验证集 checkpoint）
+- `best_model.pth`：验证集 accuracy 最好的模型参数
 
-- 学习率对比：`0.001`、`0.0005`、`0.0001`
-- Dropout 对比：`0.3`、`0.5`
-- 优化器对比：`Adam` 与 `SGD + momentum`
-- 数据增强对比：加入 `RandomCrop(32, padding=4)`
-- 模型结构对比：在卷积层后加入 `BatchNorm2d`
+调参脚本额外输出：
+
+- `results/tuning_summary.csv`：所有调参试验的汇总结果
 
 ## 参考链接
 
 - https://www.cnblogs.com/Jerry-Dong/p/8109938.html
 - https://zh.d2l.ai/chapter_computer-vision/kaggle-cifar10.html
 - https://docs.ultralytics.com/zh/datasets/classify/cifar10/
+- https://arxiv.org/abs/1512.03385 (ResNet)
+- https://arxiv.org/abs/1409.1556 (VGG)
