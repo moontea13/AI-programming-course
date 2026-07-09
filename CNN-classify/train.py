@@ -65,9 +65,9 @@ def build_dataloaders(config, train_transform, eval_transform):
 
     datasets.CIFAR10.url = CIFAR10_DOWNLOAD_URL
 
-    train_dataset = datasets.CIFAR10(root=data_dir, train=True, download=False,
+    train_dataset = datasets.CIFAR10(root=data_dir, train=True, download=True,
                                      transform=train_transform)
-    test_dataset = datasets.CIFAR10(root=data_dir, train=False, download=False,
+    test_dataset = datasets.CIFAR10(root=data_dir, train=False, download=True,
                                     transform=eval_transform)
 
     val_split = training.get("val_split", 0.0)
@@ -101,7 +101,7 @@ def _override_transform(subset, new_transform, fallback_dataset):
     # For random_split output, we can't easily change transform of the underlying dataset.
     # Instead, create a new Subset from a copy of the dataset with eval transform.
     return Subset(
-        datasets.CIFAR10(root=subset.dataset.root, train=True, download=False,
+        datasets.CIFAR10(root=subset.dataset.root, train=True, download=True,
                          transform=new_transform),
         indices,
     )
@@ -284,6 +284,7 @@ def single_train(config, ckpt_dir, results_dir, device):
                 best_model_path,
             )
 
+        should_stop = False
         if early_stopping is not None:
             improved = early_stopping.step(val_acc)
             if improved:
@@ -291,9 +292,12 @@ def single_train(config, ckpt_dir, results_dir, device):
             if early_stopping.should_stop:
                 print(f"  Early stopping triggered at epoch {epoch} "
                       f"(patience={es_cfg.get('patience', 15)}, best_val={early_stopping.best_score:.4f})", flush=True)
-                break
+                should_stop = True
 
         write_training_log(log_rows, str(results_dir / "training_log.csv"))
+
+        if should_stop:
+            break
 
     # Plot curves
     plot_curves(log_rows, str(results_dir), config["method"])
@@ -324,7 +328,7 @@ def run_kfold(config, args, ckpt_dir, results_dir, device):
     datasets.CIFAR10.url = CIFAR10_DOWNLOAD_URL
     _, eval_transform = build_transforms()
 
-    full_train = datasets.CIFAR10(root=data_dir, train=True, download=False,
+    full_train = datasets.CIFAR10(root=data_dir, train=True, download=True,
                                   transform=eval_transform)
     n = len(full_train)
     indices = np.random.RandomState(training["seed"]).permutation(n)
@@ -386,7 +390,7 @@ def _train_fold(config, ckpt_dir, results_dir, device,
 
     # Override transforms for training set
     train_transform, _ = build_transforms()
-    train_dataset = datasets.CIFAR10(root=full_dataset.root, train=True, download=False,
+    train_dataset = datasets.CIFAR10(root=full_dataset.root, train=True, download=True,
                                      transform=train_transform)
     train_subset = Subset(train_dataset, train_idx)
 
@@ -396,7 +400,7 @@ def _train_fold(config, ckpt_dir, results_dir, device,
     val_loader = DataLoader(val_subset, batch_size=training["batch_size"], shuffle=False,
                             num_workers=training["num_workers"], pin_memory=pin_memory)
     # Test loader
-    test_dataset = datasets.CIFAR10(root=full_dataset.root, train=False, download=False,
+    test_dataset = datasets.CIFAR10(root=full_dataset.root, train=False, download=True,
                                     transform=eval_transform)
     test_loader = DataLoader(test_dataset, batch_size=training["batch_size"], shuffle=False,
                              num_workers=training["num_workers"], pin_memory=pin_memory)

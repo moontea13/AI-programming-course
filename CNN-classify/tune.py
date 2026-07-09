@@ -151,11 +151,11 @@ def run_single_trial(config: dict, method: str, label: str, tune_epochs: int,
         return run_kfold_trial(config, method, label, tune_epochs, k_fold, t0)
 
     # Single validation split
+    config["method"] = f"{method}/tune_{label}"
+
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
         tmp_path = f.name
-
-    config["method"] = f"{method}/tune_{label}"
 
     cmd = [sys.executable, "train.py", "--config", tmp_path, "--epochs", str(tune_epochs)]
     result = subprocess.run(cmd, capture_output=True, text=True)

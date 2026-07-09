@@ -7,6 +7,7 @@ checkpoints/
 
 # Tuning temp files
 results/tuning_summary.csv
+results/logs/
 results/*/tune_*/
 results/*/fold_*/
 

@@ -186,17 +186,16 @@ python train.py --config configs/my_new_method.yaml
 | 方法 | 模型 | 参数量 | 优化器 | Scheduler | 验证集 | 早停 | 备注 |
 | --- | --- | ---: | --- | --- | --- | --- | --- |
 | SimpleCNN | 3 Conv + 2 FC | 620K | Adam, lr=0.001 | 无 | 10% | patience=10 | 基线（已完成） |
-| ResNet20 | 20 层残差网络 | 272K | SGD, lr=0.1, momentum=0.9, wd=1e-4 | StepLR(40, 0.1) | 10% | patience=20 | **待训练** |
-| VGG16-BN | 13 Conv + 3 FC (含 BN) | 15.2M | SGD, lr=0.05, momentum=0.9, wd=5e-4 | StepLR(40, 0.1) | 10% | patience=20 | **待训练** |
+| ResNet20 | 20 层残差网络 | 272K | SGD, lr=0.1, momentum=0.9, wd=1e-4 | StepLR(40, 0.2) | 10% | patience=20 | GPU 完整训练已完成 |
+| VGG16-BN | 13 Conv + 3 FC (含 BN), dropout=0.3 | 15.2M | SGD, lr=0.01, momentum=0.9, wd=5e-4 | StepLR(40, 0.1) | 10% | patience=20 | GPU 完整训练已完成 |
 
-<!-- 实验结果总览占位：完成全部训练后请替换为真实数据 -->
 | 方法 | Best Val Acc | Best Test Acc | Best Epoch | 训练时间 | 备注 |
 | --- | ---: | ---: | ---: | ---: | --- |
-| SimpleCNN | — | **79.05%** | 9 | — | 完整训练已完成 |
-| ResNet20 | — | — | — | — | 待训练 |
-| VGG16-BN | — | — | — | — | 待训练 |
+| SimpleCNN | — | **79.05%** | 9 | — | 初版完整训练已完成，未记录验证集 |
+| ResNet20 | **90.24%** | **89.91%** | 52 | 25 分 54 秒 | GPU 完整训练，epoch 62 早停 |
+| VGG16-BN | **92.46%** | **91.49%** | 86 | 50 分 23 秒 | GPU 完整训练，epoch 91 早停 |
 
-> **报告提示**：完成 ResNet20 和 VGG16-BN 的完整训练后，请更新上表中的 Best Val/Test Acc、Best Epoch 和训练时间。SimpleCNN 由上一批同学完成，未记录 val acc，可重新运行获取。
+> **结果说明**：ResNet20 和 VGG16-BN 已按 `HANDOFF.md` 的优先级完成调参和 GPU 完整训练；SimpleCNN 为初版结果，未记录验证集指标。
 
 ---
 
@@ -261,7 +260,7 @@ Linear(256 -> 10)
 
 ---
 
-### ResNet20 ⏳ 待训练
+### ResNet20 ✅ 已完成
 
 **模型结构：**
 
@@ -298,27 +297,33 @@ AdaptiveAvgPool -> FC(64 -> 10)
 
 - Loss：`CrossEntropyLoss`
 - Optimizer：`SGD`，lr = 0.1，momentum = 0.9，weight_decay = 1e-4
-- Scheduler：`StepLR(step_size=40, gamma=0.1)` —— 每 40 个 epoch 将 lr 衰减为原来的 0.1
+- Scheduler：`StepLR(step_size=40, gamma=0.2)` —— 每 40 个 epoch 将 lr 衰减为原来的 0.2
 - Epochs：150 | Batch size：128
 - 验证集：10% | 早停：patience=20
 
-<!-- 实验结果占位：完成训练后请填充
 **实验结果：**
 
 | Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
 | --- | ---: | ---: | ---: | ---: |
-| ... | ... | ... | ... | ... |
+| 1 | 1.625468 | 0.391333 | 2.001701 | 0.4012 |
+| 10 | 0.5098 | 0.8242 | 0.5789 | 0.8086 |
+| 23 | 0.3577 | 0.8764 | 0.4821 | 0.8450 |
+| 40 | 0.2864 | 0.8994 | 0.4339 | 0.8590 |
+| 41 | 0.1917 | 0.9342 | 0.3028 | 0.8958 |
+| 52 | 0.116390 | 0.959244 | 0.343253 | 0.9024 |
+| 62 | 0.1009 | 0.9641 | 0.3633 | 0.9012 |
 
-- 最佳 Val Accuracy：**X.XXXX（epoch X）**
-- 对应 Test Accuracy：**X.XXXX**
-- 训练时间：X 小时
--->
+- 调参最佳组合：lr = 0.1，weight_decay = 1e-4，gamma = 0.2（30 epochs trial 最佳 Val Acc = 0.8490）
+- 最佳 Val Accuracy：**0.9024（epoch 52）**
+- 对应 Test Accuracy：**0.8991**
+- 训练时间：**25 分 54 秒**（GPU：NVIDIA GeForce RTX 5070 Laptop GPU）
+- 早停：epoch 62 触发，结果文件见 `results/resnet20/`，最佳模型见 `checkpoints/resnet20/best_model.pth`
 
-> **报告提示**：运行 `python train.py --config configs/resnet20.yaml` 完成 150 轮训练后，填充实验结果表格并更新方法总览表。建议先用 `python tune.py --method resnet20 --tune-epochs 30 --trials 8` 快速调参（约 20 分钟），找到最佳 lr 和 weight_decay 后再完整训练。
+> **结果说明**：完整训练使用调参后的 `configs/resnet20.yaml`，训练日志显示 `Using device: cuda`，最佳 checkpoint 元数据为 epoch 52 / best_val_acc 0.9024。
 
 ---
 
-### VGG16-BN ⏳ 待训练
+### VGG16-BN ✅ 已完成
 
 **模型结构：**
 
@@ -369,24 +374,30 @@ FC(512 -> 10)
 **训练参数：**
 
 - Loss：`CrossEntropyLoss`
-- Optimizer：`SGD`，lr = 0.05，momentum = 0.9，weight_decay = 5e-4
+- Optimizer：`SGD`，lr = 0.01，momentum = 0.9，weight_decay = 5e-4
 - Scheduler：`StepLR(step_size=40, gamma=0.1)` —— 每 40 个 epoch 将 lr 衰减为原来的 0.1
 - Epochs：150 | Batch size：128
-- 验证集：10% | 早停：patience=20
+- 验证集：10% | 早停：patience=20 | Dropout：0.3
 
-<!-- 实验结果占位：完成训练后请填充
 **实验结果：**
 
 | Epoch | Train Loss | Train Acc | Val Loss | Val Acc |
 | --- | ---: | ---: | ---: | ---: |
-| ... | ... | ... | ... | ... |
+| 1 | 1.956450 | 0.230444 | 1.698643 | 0.3258 |
+| 23 | 0.251017 | 0.914200 | 0.370810 | 0.8748 |
+| 38 | 0.149480 | 0.949689 | 0.353216 | 0.8882 |
+| 41 | 0.076320 | 0.975800 | 0.287851 | 0.9180 |
+| 71 | 0.010755 | 0.996489 | 0.373651 | 0.9238 |
+| 86 | 0.005670 | 0.998422 | 0.382712 | 0.9246 |
+| 91 | 0.0057 | 0.9981 | 0.3877 | 0.9228 |
 
-- 最佳 Val Accuracy：**X.XXXX（epoch X）**
-- 对应 Test Accuracy：**X.XXXX**
-- 训练时间：X 小时
--->
+- 调参最佳组合：lr = 0.01，weight_decay = 5e-4，dropout = 0.3，gamma = 0.1（20 epochs trial 最佳 Val Acc = 0.8636）
+- 最佳 Val Accuracy：**0.9246（epoch 86）**
+- 对应 Test Accuracy：**0.9149**
+- 训练时间：**50 分 23 秒**（GPU：NVIDIA GeForce RTX 5070 Laptop GPU）
+- 早停：epoch 91 触发，结果文件见 `results/vgg16_bn/`，最佳模型见 `checkpoints/vgg16_bn/best_model.pth`
 
-> **报告提示**：由于 VGG16-BN 训练速度较慢，建议先跑 `python tune.py --method vgg16_bn --tune-epochs 20 --trials 6` 快速验证参数（约 1 小时），找到最佳 lr 和 weight_decay 后再完整训练。完整 150 轮在 GPU 上约需 2-3 小时。如果有 GPU 资源，请优先把这个方法跑完。
+> **结果说明**：完整训练使用调参后的 `configs/vgg16_bn.yaml`，训练日志显示 `Using device: cuda`，最佳 checkpoint 元数据为 epoch 86 / best_val_acc 0.9246。
 
 ---
 
