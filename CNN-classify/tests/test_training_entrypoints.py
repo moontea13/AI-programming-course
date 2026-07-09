@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
 import yaml
 
 import train
@@ -124,6 +125,71 @@ class TrainingEntrypointTests(unittest.TestCase):
                 )
 
             self.assertIn("2,0.9,0.6,1.1,0.4,,", (tmp_path / "results" / "training_log.csv").read_text(encoding="utf-8"))
+
+    def test_run_kfold_writes_fold_artifacts_and_one_based_summary(self):
+        config = {
+            "method": "tiny",
+            "model": {"name": "TinyModel", "params": {}},
+            "training": {
+                "epochs": 2,
+                "batch_size": 2,
+                "num_workers": 0,
+                "seed": 42,
+                "val_split": 0.1,
+            },
+            "optimizer": {"name": "sgd", "lr": 0.1},
+            "scheduler": {"name": "none"},
+            "early_stopping": {"patience": 5, "min_delta": 0.001},
+            "data": {"dir": "dataset"},
+        }
+        args = types.SimpleNamespace(k_fold=2)
+        eval_results = iter([
+            (1.0, 0.61, None),
+            (0.9, 0.72, None),
+            (0.8, 0.68, np.eye(2, dtype=int)),
+            (1.1, 0.55, None),
+            (1.0, 0.66, None),
+            (0.7, 0.64, np.eye(2, dtype=int)),
+        ])
+
+        def fake_evaluate(model, loader, criterion, device, collect_confusion=False):
+            result = next(eval_results)
+            if collect_confusion:
+                return result
+            return result
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            ckpt_dir = tmp_path / "checkpoints" / "tiny"
+            results_dir = tmp_path / "results" / "tiny"
+            ckpt_dir.mkdir(parents=True)
+            results_dir.mkdir(parents=True)
+
+            with (
+                patch.object(train.datasets, "CIFAR10", TinyCIFAR),
+                patch.object(train, "build_model", return_value=train.nn.Linear(1, 1)),
+                patch.object(train, "train_one_epoch", return_value=(0.9, 0.6)),
+                patch.object(train, "evaluate", fake_evaluate),
+            ):
+                train.run_kfold(
+                    config,
+                    args,
+                    ckpt_dir=ckpt_dir,
+                    results_dir=results_dir,
+                    device=train.torch.device("cpu"),
+                )
+
+            self.assertTrue((results_dir / "fold_1" / "training_log.csv").exists())
+            self.assertTrue((results_dir / "fold_1" / "loss_curve.png").exists())
+            self.assertTrue((results_dir / "fold_1" / "accuracy_curve.png").exists())
+            self.assertTrue((results_dir / "fold_1" / "confusion_matrix.png").exists())
+            self.assertTrue((results_dir / "fold_2" / "training_log.csv").exists())
+            self.assertTrue((results_dir / "kfold_summary.csv").exists())
+
+            summary_text = (results_dir / "kfold_summary.csv").read_text(encoding="utf-8")
+            self.assertIn("fold,best_val_acc,best_epoch,test_acc", summary_text)
+            self.assertIn("1,0.72,2,0.68", summary_text)
+            self.assertIn("2,0.66,2,0.64", summary_text)
 
 
 if __name__ == "__main__":

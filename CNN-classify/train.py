@@ -1,4 +1,5 @@
 import argparse
+import csv
 import yaml
 from pathlib import Path
 
@@ -336,23 +337,24 @@ def run_kfold(config, args, ckpt_dir, results_dir, device):
 
     fold_results = []
     for fold in range(k):
+        fold_id = fold + 1
         val_start = fold * fold_size
         val_end = val_start + fold_size if fold < k - 1 else n
         val_idx = indices[val_start:val_end]
         train_idx = np.concatenate([indices[:val_start], indices[val_end:]])
 
         print(f"\n{'='*50}")
-        print(f"Fold {fold+1}/{k}  (train={len(train_idx)}, val={len(val_idx)})")
+        print(f"Fold {fold_id}/{k}  (train={len(train_idx)}, val={len(val_idx)})")
         print(f"{'='*50}", flush=True)
 
         # Create fold-specific config
         fold_config = config.copy()
-        fold_config["method"] = f"{config['method']}/fold_{fold}"
+        fold_config["method"] = f"{config['method']}/fold_{fold_id}"
         fold_config["training"] = training.copy()
         fold_config["training"]["seed"] = training["seed"] + fold
 
-        fold_ckpt = ckpt_dir / f"fold_{fold}"
-        fold_res = results_dir / f"fold_{fold}"
+        fold_ckpt = ckpt_dir / f"fold_{fold_id}"
+        fold_res = results_dir / f"fold_{fold_id}"
         ensure_dirs(str(fold_ckpt), str(fold_res))
 
         # Override dataloader building for k-fold
@@ -360,8 +362,22 @@ def run_kfold(config, args, ckpt_dir, results_dir, device):
             fold_config, fold_ckpt, fold_res, device,
             train_idx, val_idx, full_train,
         )
-        fold_results.append({"fold": fold, "val_acc": val_acc, "best_epoch": best_epoch,
+        fold_results.append({"fold": fold_id, "val_acc": val_acc, "best_epoch": best_epoch,
                              "test_acc": test_acc})
+
+    summary_path = results_dir / "kfold_summary.csv"
+    with open(summary_path, "w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=["fold", "best_val_acc", "best_epoch", "test_acc"])
+        writer.writeheader()
+        for row in fold_results:
+            writer.writerow(
+                {
+                    "fold": row["fold"],
+                    "best_val_acc": round(row["val_acc"], 4),
+                    "best_epoch": row["best_epoch"],
+                    "test_acc": round(row["test_acc"], 4),
+                }
+            )
 
     # Summary
     val_accs = [r["val_acc"] for r in fold_results if r["val_acc"] is not None]
@@ -421,6 +437,7 @@ def _train_fold(config, ckpt_dir, results_dir, device,
     best_val_acc = 0.0
     best_epoch = 0
     best_model_path = ckpt_dir / "best_model.pth"
+    log_rows = []
 
     for epoch in range(1, training["epochs"] + 1):
         current_lr = optimizer.param_groups[0]["lr"]
@@ -434,6 +451,16 @@ def _train_fold(config, ckpt_dir, results_dir, device,
             print(f"  Epoch [{epoch}/{training['epochs']}] LR: {current_lr:.6f} | "
                   f"Train Acc: {train_acc:.4f} | Val Acc: {val_acc:.4f}", flush=True)
 
+        log_rows.append(
+            {
+                "epoch": epoch,
+                "train_loss": round(train_loss, 6),
+                "train_acc": round(train_acc, 6),
+                "val_loss": round(val_loss, 6),
+                "val_acc": round(val_acc, 6),
+            }
+        )
+
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_epoch = epoch
@@ -444,15 +471,25 @@ def _train_fold(config, ckpt_dir, results_dir, device,
                 best_model_path,
             )
 
+        should_stop = False
         improved = early_stopping.step(val_acc)
         if early_stopping.should_stop:
             print(f"  Early stopping at epoch {epoch} (best val={early_stopping.best_score:.4f})", flush=True)
+            should_stop = True
+
+        write_training_log(log_rows, str(results_dir / "training_log.csv"))
+
+        if should_stop:
             break
 
     # Load best and evaluate on test
     checkpoint = torch.load(best_model_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model_state_dict"])
-    test_loss, test_acc, _ = evaluate(model, test_loader, criterion, device)
+    plot_curves(log_rows, str(results_dir), config["method"])
+    test_loss, test_acc, confusion_matrix = evaluate(
+        model, test_loader, criterion, device, collect_confusion=True
+    )
+    plot_confusion_matrix(confusion_matrix, str(results_dir / "confusion_matrix.png"))
 
     print(f"  Fold result: Best Val={best_val_acc:.4f} @ epoch {best_epoch}, "
           f"Test={test_acc:.4f}", flush=True)

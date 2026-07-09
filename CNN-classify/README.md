@@ -196,6 +196,7 @@ python train.py --config configs/my_new_method.yaml
 | VGG16-BN | **92.46%** | **91.49%** | 86 | 50 分 23 秒 | GPU 完整训练，epoch 91 早停 |
 
 > **结果说明**：ResNet20 和 VGG16-BN 已按 `HANDOFF.md` 的优先级完成调参和 GPU 完整训练；SimpleCNN 为初版结果，未记录验证集指标。
+> ResNet20 已补充 `5-fold` 交叉验证，详见下文。
 
 ---
 
@@ -320,6 +321,23 @@ AdaptiveAvgPool -> FC(64 -> 10)
 - 早停：epoch 62 触发，结果文件见 `results/resnet20/`，最佳模型见 `checkpoints/resnet20/best_model.pth`
 
 > **结果说明**：完整训练使用调参后的 `configs/resnet20.yaml`，训练日志显示 `Using device: cuda`，最佳 checkpoint 元数据为 epoch 52 / best_val_acc 0.9024。
+
+**5-fold 交叉验证：**
+
+使用调参后的 `configs/resnet20.yaml`，`k=5`，完整 `150 epochs`（含早停），GPU 执行。
+
+| Fold | Best Val Acc | Best Epoch | Test Acc |
+| --- | ---: | ---: | ---: |
+| 1 | 89.42% | 53 | 89.39% |
+| 2 | 89.63% | 42 | 89.46% |
+| 3 | 90.06% | 46 | 88.86% |
+| 4 | 90.00% | 46 | 89.03% |
+| 5 | 90.10% | 45 | 89.72% |
+
+- Val Acc mean +/- std: **89.84% +/- 0.27%**
+- Test Acc mean +/- std: **89.29% +/- 0.31%**
+
+产物见 `results/resnet20/fold_1..fold_5/` 与 `results/resnet20/kfold_summary.csv`。
 
 ---
 
