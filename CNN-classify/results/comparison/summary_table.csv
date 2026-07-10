@@ -1,0 +1,4 @@
+model,params,epochs_recorded,best_epoch,best_metric,best_val_acc,best_test_acc,train_acc_at_best,note
+SimpleCNN,0.62M,10,9,test_acc,,79.05%,80.07%,10-epoch baseline evaluated on the CIFAR-10 test split.
+ResNet20,0.27M,62,52,val_acc,90.24%,,95.92%,Best validation checkpoint; includes 5-fold summary.
+VGG16-BN,15.2M,91,86,val_acc,92.46%,,99.84%,Best validation accuracy among available methods.
