@@ -1,0 +1,7 @@
+﻿metric,value
+known_train_authors,2889
+known_valid_authors,339
+known_test_authors,366
+train_valid_overlap,0
+train_test_overlap,0
+valid_test_overlap,0

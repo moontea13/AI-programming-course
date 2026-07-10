@@ -3,10 +3,10 @@ import random
 import logging
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from config import Config
-from process import get_data
+from process import get_split_data, get_train_sample_weights
 from model import PoetryModel, PoetryModel2
 from utils import set_seed, set_logger
 
@@ -19,7 +19,7 @@ def split_train_test(data, train_ratio=0.8, shuffle=True):
     total = len(data)
     train_total = int(total * train_ratio)
     train_data = data[:train_total]
-    test_data = data[:train_total]
+    test_data = data[train_total:]
     print('总共有数据{}条'.format(total))
     print('划分后，训练集{}条'.format(train_total))
     print('划分后，测试集{}条'.format(total - train_total))
@@ -32,10 +32,14 @@ class Trainer:
         self.config = config
         self.criterion = nn.CrossEntropyLoss()
 
-    def train(self, train_loader, test_loader=None):
-        optimizer = optim.Adam(self.model.parameters(), lr=self.config.lr)
+    def train(self, train_loader, valid_loader=None):
+        optimizer = optim.Adam(
+            self.model.parameters(),
+            lr=self.config.lr,
+            weight_decay=self.config.weight_decay,
+        )
         global_step = 0
-        best_test_loss = float("inf")
+        best_valid_loss = float("inf")
         best_epoch = None
         total_step = len(train_loader) * self.config.num_epoch
         for epoch in range(1, self.config.num_epoch + 1):
@@ -61,15 +65,19 @@ class Trainer:
             logger.info('epoch:{} total_loss:{}'.format(
                 epoch, total_loss
             ))
-            if self.config.do_test:
-                test_loss = self.test(test_loader)
-                if test_loss < best_test_loss:
+            if valid_loader is not None:
+                valid_loss = self.test(valid_loader)
+                if valid_loss < best_valid_loss:
                     torch.save(self.model.state_dict(), self.config.save_path)
-                    best_test_loss = test_loss
+                    best_valid_loss = valid_loss
                     best_epoch = epoch
-                logger.info('epoch:{} test_loss:{}'.format(epoch, test_loss))
+                logger.info('epoch:{} valid_loss:{}'.format(epoch, valid_loss))
+        if best_epoch is None:
+            torch.save(self.model.state_dict(), self.config.save_path)
+            best_epoch = self.config.num_epoch
+            best_valid_loss = total_loss
         logger.info('====================')
-        logger.info('在第{}个epoch损失最小为：{}'.format(best_epoch, best_test_loss))
+        logger.info('在第{}个epoch验证损失最小为：{}'.format(best_epoch, best_valid_loss))
 
     def test(self, test_loader):
         self.model.eval()
@@ -85,7 +93,7 @@ class Trainer:
                 active_target = target.contiguous().view(-1)[active]
                 loss = self.criterion(active_output, active_target)
                 total_loss = total_loss + loss.item()
-        return total_loss
+        return total_loss / max(len(test_loader), 1)
 
     def generate(self, start_words, prefix_words=None):
         """
@@ -104,12 +112,12 @@ class Trainer:
 
         if prefix_words:
             for word in prefix_words:
-                output, hidden = model(input, hidden)
+                output, hidden = self.model(input, hidden)
                 input = input.data.new([self.config.word2idx[word]]).view(1, 1)
 
         for i in range(self.config.max_gen_len):
             # 初始化的时候input=[[2]], hidden=None
-            output, hidden = model(input, hidden)
+            output, hidden = self.model(input, hidden)
 
             if i < start_word_len:
                 w = results[i]
@@ -146,11 +154,11 @@ class Trainer:
 
         if prefix_words:
             for word in prefix_words:
-                output, hidden = model(input, hidden)
+                output, hidden = self.model(input, hidden)
                 input = (input.data.new([self.config.word2idx[word]])).view(1, 1)
 
         for i in range(self.config.max_gen_len):
-            output, hidden = model(input, hidden)
+            output, hidden = self.model(input, hidden)
             top_index = output.data[0].topk(1)[1][0].item()
             w = self.config.idx2word[top_index]
 
@@ -180,17 +188,32 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     config.device = device
 
-    data, word2idx, idx2word = get_data(config)
+    train_data, valid_data, test_data, word2idx, idx2word = get_split_data(config)
     config.word2idx = word2idx
     config.idx2word = idx2word
-    train_data, test_data = split_train_test(data)
 
     if config.do_train:
         train_data = torch.from_numpy(train_data)
+        train_sampler = None
+        if config.use_author_weighted_sampling:
+            sample_weights = get_train_sample_weights(config, len(train_data))
+            train_sampler = WeightedRandomSampler(
+                weights=torch.as_tensor(sample_weights, dtype=torch.double),
+                num_samples=len(sample_weights),
+                replacement=True,
+            )
         train_loader = DataLoader(
             train_data,
             batch_size=config.batch_size,
-            shuffle=True,
+            shuffle=train_sampler is None,
+            sampler=train_sampler,
+            num_workers=2,
+        )
+        valid_data = torch.from_numpy(valid_data)
+        valid_loader = DataLoader(
+            valid_data,
+            batch_size=config.batch_size,
+            shuffle=False,
             num_workers=2,
         )
 
@@ -206,16 +229,19 @@ if __name__ == '__main__':
     model = PoetryModel2(len(word2idx), config.embedding_dim, config.hidden_dim)
     if config.do_load_model:
         print('加载已训练好的模型。。。')
-        model.load_state_dict(torch.load(config.load_path))
+        model.load_state_dict(torch.load(config.load_path, map_location=device))
 
     model.to(device)
 
     trainer = Trainer(model, config)
     if config.do_train:
-        if config.do_test:
-            trainer.train(train_loader, test_loader)
-        else:
-            trainer.train(train_loader)
+        trainer.train(train_loader, valid_loader)
+
+    if config.do_test:
+        if config.do_train:
+            model.load_state_dict(torch.load(config.save_path, map_location=device))
+        test_loss = trainer.test(test_loader)
+        logger.info('final_test_loss:{}'.format(test_loss))
 
     if config.do_predict:
         result = trainer.generate('丽日照残春')

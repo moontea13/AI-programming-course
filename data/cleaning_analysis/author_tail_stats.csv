@@ -1,0 +1,10 @@
+﻿metric,value
+author_count,3597
+single_poem_author_count,1865
+single_poem_author_ratio,0.5184876285793717
+top1_ratio,0.055881615249561076
+top5_ratio,0.1419112114371708
+top10_ratio,0.20623693671097734
+top20_ratio,0.30684725357411585
+unknown_author_count,1711
+unknown_author_ratio,0.028609648022740575

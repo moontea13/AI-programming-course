@@ -1,0 +1,351 @@
+{
+  "converter": "opencc",
+  "raw_count": 57612,
+  "retained_parent_count": 56191,
+  "retained_parent_ratio": 0.9753349996528501,
+  "kept_count": 59805,
+  "dropped_count": 1454,
+  "kept_ratio": 0.9753349996528501,
+  "drop_reasons": {
+    "too_short": 339,
+    "duplicate": 875,
+    "empty": 206,
+    "too_short_chunk": 2,
+    "duplicate_chunk": 30,
+    "too_long_sentence": 1,
+    "too_long_unrecoverable": 1
+  },
+  "long_poem_recovery": {
+    "long_records": 2475,
+    "recovered_long_records": 2474,
+    "recovered_chunks": 6088,
+    "unrecoverable_long_sentences": 1,
+    "discarded_short_chunks": 2,
+    "retained_parent_records": 56191,
+    "retained_training_samples": 59805
+  },
+  "author_top10_ratio": 0.20623693671097734,
+  "vocab_size": 8901,
+  "top_chars": [
+    [
+      "不",
+      30127
+    ],
+    [
+      "人",
+      23184
+    ],
+    [
+      "无",
+      18553
+    ],
+    [
+      "山",
+      17397
+    ],
+    [
+      "一",
+      17306
+    ],
+    [
+      "风",
+      16658
+    ],
+    [
+      "日",
+      16129
+    ],
+    [
+      "云",
+      14605
+    ],
+    [
+      "有",
+      14448
+    ],
+    [
+      "来",
+      13740
+    ],
+    [
+      "天",
+      13544
+    ],
+    [
+      "何",
+      13252
+    ],
+    [
+      "中",
+      12802
+    ],
+    [
+      "时",
+      12430
+    ],
+    [
+      "上",
+      12234
+    ],
+    [
+      "花",
+      12018
+    ],
+    [
+      "水",
+      11997
+    ],
+    [
+      "月",
+      11831
+    ],
+    [
+      "春",
+      11552
+    ],
+    [
+      "生",
+      10876
+    ],
+    [
+      "为",
+      10733
+    ],
+    [
+      "相",
+      10697
+    ],
+    [
+      "心",
+      10490
+    ],
+    [
+      "自",
+      10277
+    ],
+    [
+      "年",
+      10211
+    ],
+    [
+      "如",
+      9877
+    ],
+    [
+      "长",
+      9872
+    ],
+    [
+      "君",
+      9855
+    ],
+    [
+      "知",
+      9670
+    ],
+    [
+      "白",
+      9149
+    ]
+  ],
+  "form_distribution": {
+    "五言": 30684,
+    "七言": 22106,
+    "其他": 6307,
+    "五七混合": 708
+  },
+  "fine_form_distribution": {
+    "五言律诗": 15053,
+    "五言长篇/排律": 9571,
+    "五言其他": 1581,
+    "七言律诗": 8389,
+    "五言绝句": 4479,
+    "其他": 6307,
+    "七言其他": 1113,
+    "七言长篇/排律": 1510,
+    "七言绝句": 11094,
+    "五七混合": 708
+  },
+  "split_distribution": {
+    "test": 6074,
+    "train": 47851,
+    "valid": 5880
+  },
+  "author_holdout_split_distribution": {
+    "train": 48636,
+    "test": 6818,
+    "valid": 4351
+  },
+  "author_holdout_diagnostics": {
+    "known_train_authors": 2889,
+    "known_valid_authors": 339,
+    "known_test_authors": 366,
+    "train_valid_overlap": 0,
+    "train_test_overlap": 0,
+    "valid_test_overlap": 0
+  },
+  "text_split_weight_stats": {
+    "train_author_count": 3166,
+    "train_sample_count": 47851,
+    "weight_min": 0.3891890434762363,
+    "weight_max": 3.8918904347623626,
+    "weight_ratio": 10.0
+  },
+  "author_holdout_weight_stats": {
+    "train_author_count": 2892,
+    "train_sample_count": 48636,
+    "weight_min": 0.4143802017650363,
+    "weight_max": 4.143802017650363,
+    "weight_ratio": 10.0
+  },
+  "before_after": {
+    "raw_avg_len": 53.270204124140804,
+    "candidate_avg_len": 50.30462403665903,
+    "final_avg_len": 47.92828358832873,
+    "raw_median_len": 40.0,
+    "candidate_median_len": 40.0,
+    "final_median_len": 40,
+    "raw_vocab_size": 9531,
+    "candidate_vocab_size": 8903,
+    "final_vocab_size": 8901,
+    "raw_total_chars": 3069003,
+    "candidate_total_chars": 2898150,
+    "final_total_chars": 2866351,
+    "removed_symbol_types": 48,
+    "removed_symbol_count": 59916,
+    "top_removed_symbols": [
+      [
+        "《",
+        9451
+      ],
+      [
+        "》",
+        9449
+      ],
+      [
+        "（",
+        8833
+      ],
+      [
+        "）",
+        8803
+      ],
+      [
+        "「",
+        6119
+      ],
+      [
+        "」",
+        6112
+      ],
+      [
+        "□",
+        2178
+      ],
+      [
+        "、",
+        1804
+      ],
+      [
+        "[",
+        1282
+      ],
+      [
+        "]",
+        1281
+      ],
+      [
+        "〖",
+        1061
+      ],
+      [
+        "〗",
+        1061
+      ],
+      [
+        "1",
+        417
+      ],
+      [
+        "○",
+        327
+      ],
+      [
+        "·",
+        309
+      ],
+      [
+        "『",
+        300
+      ],
+      [
+        "』",
+        299
+      ],
+      [
+        "}",
+        176
+      ],
+      [
+        "{",
+        175
+      ],
+      [
+        "2",
+        96
+      ],
+      [
+        "…",
+        84
+      ],
+      [
+        "/",
+        62
+      ],
+      [
+        "=",
+        32
+      ],
+      [
+        "●",
+        32
+      ],
+      [
+        "3",
+        29
+      ],
+      [
+        "〈",
+        23
+      ],
+      [
+        "〉",
+        23
+      ],
+      [
+        "-",
+        15
+      ],
+      [
+        "4",
+        15
+      ],
+      [
+        "|",
+        12
+      ]
+    ]
+  },
+  "author_tail": {
+    "author_count": 3597,
+    "single_poem_author_count": 1865,
+    "single_poem_author_ratio": 0.5184876285793717,
+    "top1_ratio": 0.055881615249561076,
+    "top5_ratio": 0.1419112114371708,
+    "top10_ratio": 0.20623693671097734,
+    "top20_ratio": 0.30684725357411585,
+    "unknown_author_count": 1711,
+    "unknown_author_ratio": 0.028609648022740575
+  },
+  "figure_dir": "data\\cleaning_analysis\\figures"
+}
