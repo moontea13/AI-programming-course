@@ -1,0 +1,15 @@
+﻿metric,value
+raw_avg_len,53.270204124140804
+candidate_avg_len,50.30462403665903
+final_avg_len,47.92828358832873
+raw_median_len,40.0
+candidate_median_len,40.0
+final_median_len,40
+raw_vocab_size,9531
+candidate_vocab_size,8903
+final_vocab_size,8901
+raw_total_chars,3069003
+candidate_total_chars,2898150
+final_total_chars,2866351
+removed_symbol_types,48
+removed_symbol_count,59916

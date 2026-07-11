@@ -1,0 +1,8 @@
+﻿metric,value
+long_records,2475
+recovered_long_records,2474
+recovered_chunks,6088
+unrecoverable_long_sentences,1
+discarded_short_chunks,2
+retained_parent_records,56191
+retained_training_samples,59805
