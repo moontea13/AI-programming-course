@@ -2,13 +2,15 @@ import torch
 import random
 import logging
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, WeightedRandomSampler
+import numpy as np
 
 from config import Config
 from process import get_split_data, get_train_sample_weights
-from model import PoetryModel, PoetryModel2
-from utils import set_seed, set_logger
+from model import PoetryModel, PoetryModel2, PoetryModel3
+from utils import set_seed, set_logger, init_pretrained_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,9 @@ class Trainer:
     def __init__(self, model, config):
         self.model = model
         self.config = config
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=config.label_smoothing)
+        self.ss_prob = config.ss_start_prob
+        self.ss_decay = (config.ss_start_prob - config.ss_end_prob) / config.num_epoch
 
     def train(self, train_loader, valid_loader=None):
         optimizer = optim.Adam(
@@ -38,6 +42,14 @@ class Trainer:
             lr=self.config.lr,
             weight_decay=self.config.weight_decay,
         )
+
+        scheduler = None
+        if self.config.lr_scheduler == 'cosine':
+            total_steps = len(train_loader) * self.config.num_epoch
+            scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_steps)
+        elif self.config.lr_scheduler == 'plateau' and valid_loader is not None:
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=3)
+
         global_step = 0
         best_valid_loss = float("inf")
         best_epoch = None
@@ -49,35 +61,68 @@ class Trainer:
                 train_data = train_data.long().to(self.config.device)
                 input = train_data[:, :-1]
                 target = train_data[:, 1:]
+
+                # Scheduled Sampling: first pass with teacher forcing
                 output, _ = self.model(input)
+
+                if self.config.scheduled_sampling and self.ss_prob < 1.0:
+                    # Replace some input tokens with model's own predictions
+                    with torch.no_grad():
+                        pred_ids = output.view(input.size(0), input.size(1), -1).argmax(dim=-1)
+                        mask = torch.rand(input.size(), device=input.device) > self.ss_prob
+                        # Don't replace SOP (position 0)
+                        mask[:, 0] = False
+                        noisy_input = input.clone()
+                        noisy_input[mask] = pred_ids[mask]
+                    output, _ = self.model(noisy_input)
+
                 active = (input > 0).view(-1)
                 active_output = output[active]
                 active_target = target.contiguous().view(-1)[active]
                 loss = self.criterion(active_output, active_target)
                 total_loss = total_loss + loss.item()
+
                 optimizer.zero_grad()
                 loss.backward()
+
+                # Gradient clipping
+                if self.config.grad_clip > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(), self.config.grad_clip
+                    )
+
                 optimizer.step()
-                logger.info('epoch:{} step:{}/{} loss:{}'.format(
-                    epoch, global_step, total_step, loss.item()
+
+                if scheduler is not None and isinstance(scheduler, optim.lr_scheduler.CosineAnnealingLR):
+                    scheduler.step()
+
+                logger.info('epoch:{} step:{}/{} loss:{:.4f} lr:{:.2e} ss_prob:{:.2f}'.format(
+                    epoch, global_step, total_step, loss.item(),
+                    optimizer.param_groups[0]['lr'], self.ss_prob
                 ))
                 global_step += 1
-            logger.info('epoch:{} total_loss:{}'.format(
-                epoch, total_loss
-            ))
+
+            logger.info('epoch:{} total_loss:{:.4f}'.format(epoch, total_loss))
+
             if valid_loader is not None:
                 valid_loss = self.test(valid_loader)
                 if valid_loss < best_valid_loss:
                     torch.save(self.model.state_dict(), self.config.save_path)
                     best_valid_loss = valid_loss
                     best_epoch = epoch
-                logger.info('epoch:{} valid_loss:{}'.format(epoch, valid_loss))
+                logger.info('epoch:{} valid_loss:{:.4f}'.format(epoch, valid_loss))
+
+                if scheduler is not None and isinstance(scheduler, optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(valid_loss)
+
+            self.ss_prob = max(self.config.ss_end_prob, self.ss_prob - self.ss_decay)
+
         if best_epoch is None:
             torch.save(self.model.state_dict(), self.config.save_path)
             best_epoch = self.config.num_epoch
             best_valid_loss = total_loss
         logger.info('====================')
-        logger.info('在第{}个epoch验证损失最小为：{}'.format(best_epoch, best_valid_loss))
+        logger.info('在第{}个epoch验证损失最小为：{:.4f}'.format(best_epoch, best_valid_loss))
 
     def test(self, test_loader):
         self.model.eval()
@@ -95,87 +140,77 @@ class Trainer:
                 total_loss = total_loss + loss.item()
         return total_loss / max(len(test_loader), 1)
 
+    def _sample_token(self, last_output):
+        """Temperature + top-p (nucleus) sampling over the last position."""
+        logits = last_output / self.config.temperature
+
+        # Top-p filtering
+        sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
+        cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+        sorted_indices_to_remove = cumulative_probs > self.config.top_p
+        sorted_indices_to_remove[:, 1:] = sorted_indices_to_remove[:, :-1].clone()
+        sorted_indices_to_remove[:, 0] = False
+
+        indices_to_remove = sorted_indices_to_remove.scatter(
+            1, sorted_indices, sorted_indices_to_remove
+        )
+        logits[indices_to_remove] = float('-inf')
+
+        probs = F.softmax(logits, dim=-1)
+        return torch.multinomial(probs, 1).item()
+
     def generate(self, start_words, prefix_words=None):
-        """
-        给定几个词，根据这几个词接着生成一首完整的诗歌
-        start_words：u'春江潮水连海平'
-        比如start_words 为 春江潮水连海平，可以生成：
-
-        """
-
         results = list(start_words)
         start_word_len = len(start_words)
-        # 手动设置第一个词为<SOP>
-        input = torch.tensor([self.config.word2idx['SOP']]).view(1, 1).long()
-        input = input.to(self.config.device)
-        hidden = None
 
         if prefix_words:
             for word in prefix_words:
-                output, hidden = self.model(input, hidden)
-                input = input.data.new([self.config.word2idx[word]]).view(1, 1)
+                results = [word] + results
 
         for i in range(self.config.max_gen_len):
-            # 初始化的时候input=[[2]], hidden=None
-            output, hidden = self.model(input, hidden)
+            input_seq = ['SOP'] + results
+            input_ids = [self.config.word2idx.get(w, self.config.word2idx['UNK']) for w in input_seq]
+            input = torch.tensor([input_ids]).long().to(self.config.device)
+            output, _ = self.model(input)
+            last_output = output[-1:, :]
 
             if i < start_word_len:
                 w = results[i]
-                input = input.data.new([self.config.word2idx[w]]).view(1, 1)
             else:
-                top_index = output.data[0].topk(1)[1][0].item()
+                top_index = self._sample_token(last_output)
                 w = self.config.idx2word[top_index]
                 results.append(w)
-                input = input.data.new([top_index]).view(1, 1)
             if w == 'EOP':
                 del results[-1]
                 break
         return results
 
     def gen_acrostic(self, start_words, prefix_words=None):
-        """
-        生成藏头诗
-        start_words : u'深度学习'
-        生成：
-        深木通中岳，青苔半日脂。
-        度山分地险，逆浪到南巴。
-        学道兵犹毒，当时燕不移。
-        习根通古岸，开镜出清羸。
-        """
         results = []
         start_word_len = len(start_words)
-        input = (torch.tensor([self.config.word2idx['SOP']]).view(1, 1).long())
-        input = input.to(self.config.device)
-        hidden = None
-
-        index = 0  # 用来指示已经生成了多少句藏头诗
-        # 上一个词
+        index = 0
         pre_word = 'SOP'
 
         if prefix_words:
             for word in prefix_words:
-                output, hidden = self.model(input, hidden)
-                input = (input.data.new([self.config.word2idx[word]])).view(1, 1)
+                results.append(word)
 
         for i in range(self.config.max_gen_len):
-            output, hidden = self.model(input, hidden)
-            top_index = output.data[0].topk(1)[1][0].item()
-            w = self.config.idx2word[top_index]
+            input_seq = ['SOP'] + results
+            input_ids = [self.config.word2idx.get(w, self.config.word2idx['UNK']) for w in input_seq]
+            input = torch.tensor([input_ids]).long().to(self.config.device)
+            output, _ = self.model(input)
+            last_output = output[-1:, :]
 
-            if (pre_word in {u'。', u'！', 'SOP'}):
-                # 如果遇到句号，藏头的词送进去生成
-
+            if pre_word in {u'。', u'！', 'SOP'}:
                 if index == start_word_len:
-                    # 如果生成的诗歌已经包含全部藏头的词，则结束
                     break
                 else:
-                    # 把藏头的词作为输入送入模型
                     w = start_words[index]
                     index += 1
-                    input = (input.data.new([self.config.word2idx[w]])).view(1, 1)
             else:
-                # 否则的话，把上一次预测是词作为下一个词输入
-                input = (input.data.new([self.config.word2idx[w]])).view(1, 1)
+                top_index = self._sample_token(last_output)
+                w = self.config.idx2word[top_index]
             results.append(w)
             pre_word = w
         return results
@@ -185,7 +220,12 @@ if __name__ == '__main__':
     config = Config()
     set_seed(123)
     set_logger('./main.log')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        device = torch.device('mps')
+    else:
+        device = torch.device('cpu')
     config.device = device
 
     train_data, valid_data, test_data, word2idx, idx2word = get_split_data(config)
@@ -226,7 +266,14 @@ if __name__ == '__main__':
             num_workers=2,
         )
 
-    model = PoetryModel2(len(word2idx), config.embedding_dim, config.hidden_dim)
+    model = PoetryModel3(len(word2idx), config.embedding_dim, config.hidden_dim)
+
+    if not config.do_load_model:
+        pretrained_weight, pretrained_dim = init_pretrained_embeddings(word2idx, idx2word)
+        if pretrained_dim != config.embedding_dim:
+            config.embedding_dim = pretrained_dim
+        model.embeddings = model.embeddings.from_pretrained(pretrained_weight, freeze=False)
+
     if config.do_load_model:
         print('加载已训练好的模型。。。')
         model.load_state_dict(torch.load(config.load_path, map_location=device))
