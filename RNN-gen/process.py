@@ -38,7 +38,7 @@ def _parseRawData(author=None, constrain=None, src='./data/tang/', category="poe
         result, number = re.subn(u"{.*}", "", result)
         result, number = re.subn(u"《.*》", "", result)
         result, number = re.subn(u"《.*》", "", result)
-        result, number = re.subn(u"[\]\[]", "", result)
+        result, number = re.subn(r"[\]\[]", "", result)
         r = ""
         for s in result:
             if s not in set('0123456789-'):

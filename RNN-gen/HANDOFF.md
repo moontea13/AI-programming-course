@@ -253,3 +253,169 @@ Distinct-2
 ```
 
 详细的数据处理设计、实际统计和改动原因见 [EXPERIMENT_ENHANCEMENT.md](EXPERIMENT_ENHANCEMENT.md)。
+
+---
+
+## 12. 模型架构改进（第二轮交接）
+
+### 12.1 三种可用模型
+
+| 模型 | 文件 | 架构 |
+|---|---|---|
+| **PoetryModel** | `model.py:7` | Embedding → BiLSTM(1层, bidir) → Linear |
+| **PoetryModel2** | `model.py:32` | Embedding → UniLSTM(2层) → Linear |
+| **PoetryModel3** | `model.py:53` | Embedding(预训练) → BiLSTM-Encoder(2层+残差) → UniLSTM-Decoder(2层+残差) → Bahdanau Attention → Linear |
+
+### 12.2 PoetryModel3 详细架构
+
+```
+Input tokens
+    │
+Embedding (vocab_size → 768, Classical Chinese RoBERTa 预训练)
+    │
+┌─ Encoder ─────────────────────────────────────────┐
+│  BiLSTM Layer1 (768→512, bidir)  + Linear残差      │
+│  BiLSTM Layer2 (1024→512, bidir) + Linear残差      │
+└──────────────────────────────────────────────────┘
+    │  enc_out: (batch, seq_len, 1024)
+┌─ Decoder ─────────────────────────────────────────┐
+│  UniLSTM Layer1 (1024→512)        + Linear残差     │
+│  UniLSTM Layer2 (512→512)         + 恒等残差      │
+└──────────────────────────────────────────────────┘
+    │  dec_out: (batch, seq_len, 512)
+┌─ Attention ───────────────────────────────────────┐
+│  Bahdanau Additive: attn(dec_out, enc_out)        │
+│  Context = softmax(W·tanh([dec; enc])) · enc_out  │
+└──────────────────────────────────────────────────┘
+    │  combined: (batch, seq_len, 512+1024)
+Linear → vocab_size
+```
+
+### 12.3 预训练 Embedding
+
+使用 HuggingFace 模型 `KoichiYasuoka/roberta-classical-chinese-base-char` 初始化 Embedding 层：
+- 古典中文/文言文预训练的 RoBERTa，与唐诗数据分布匹配
+- Embedding 维度 768，首次运行时自动下载（~400MB）
+- 仅在 `config.do_load_model = False`（全新训练）时加载
+- 训练中 embedding 不冻结，继续微调
+
+### 12.4 训练改进
+
+| 改进项 | 参数 | 位置 |
+|---|---|---|
+| Label Smoothing | 0.1 | `config.py` |
+| Gradient Clipping | max_norm=5.0 | `config.py` |
+| Cosine LR Scheduler | T_max=总步数 | `config.py` |
+| Scheduled Sampling | 1.0 → 0.2 线性衰减 | `config.py` |
+| Early Stopping | patience=5, min_delta=1e-4 | `config.py`, `main.py:70-80` |
+| MPS 自动检测 | Apple Silicon GPU | `main.py` |
+
+### 12.5 推理改进
+
+- **Temperature sampling**: `config.temperature = 0.8`，控制生成多样性
+- **Top-p (nucleus) sampling**: `config.top_p = 0.9`，只从累积概率前 90% 的 token 中采样
+- 实现位置：`main.py` 的 `_sample_token()` 方法
+
+### 12.6 新增文件
+
+| 文件 | 用途 |
+|---|---|
+| `requirements.txt` | 全部依赖（torch, transformers, matplotlib 等） |
+| `checkpoints/` | 模型保存目录（当前仅有占位文件） |
+
+---
+
+## 13. 下一轮任务：评价与调参（第三轮交接）
+
+### 13.1 待完成工作
+
+**评价指标选取与实现：**
+
+需要在 `main.py` 中新增评价模块，至少包含：
+
+| 指标 | 说明 |
+|---|---|
+| **Test Loss / Perplexity** | 已有 test() 计算 loss，PPL = exp(loss) |
+| **Distinct-1 / Distinct-2** | unigram/bigram 去重率，衡量生成多样性 |
+| **重复率** | 生成结果中重复 n-gram 的比例 |
+| **藏头准确率** | 藏头诗中藏头字是否正确出现在句首 |
+| **人工评价维度** | 流畅性、意境、相关性、结构完整性（需设计评分表） |
+
+**自动化调参：**
+
+建议新增 `tune.py`，对关键超参数做 grid search 或 Bayesian optimization（如 Optuna）：
+
+```python
+# 建议搜索空间
+param_space = {
+    'hidden_dim': [256, 512, 768],
+    'num_epoch': [15, 20, 30],
+    'lr': [5e-4, 1e-3, 3e-3],
+    'batch_size': [64, 128],
+    'temperature': [0.6, 0.8, 1.0],
+    'top_p': [0.8, 0.9, 0.95],
+}
+```
+
+**三个模型完整训练与对比：**
+
+对 `PoetryModel`、`PoetryModel2`、`PoetryModel3` 分别训练并记录：
+
+```text
+模型名称和结构描述
+全部超参数
+每个 epoch 的 train loss 和 valid loss
+最佳 epoch 的 test loss / Perplexity
+Distinct-1 / Distinct-2
+重复率
+藏头准确率（使用固定 prompt 列表）
+训练耗时和设备
+若干固定 prompt 的生成结果（续写 + 藏头诗）
+```
+
+### 13.2 如何切换模型
+
+在 `config.py` 中新增 `model_type`：
+
+```python
+self.model_type = 'poetry3'  # 'poetry1' / 'poetry2' / 'poetry3'
+```
+
+然后在 `main.py` 中根据该配置选择模型即可（建议实现工厂函数）。
+
+### 13.3 结果存放约定
+
+```text
+checkpoints/<model_name>_<experiment_id>.pt      # 模型权重
+results/<model_name>_<experiment_id>.json         # 超参数 + 指标
+results/<model_name>_<experiment_id>_loss.csv     # 训练 loss 曲线
+results/<model_name>_<experiment_id>_generated.txt # 固定 prompt 生成结果
+```
+
+### 13.4 固定 Prompt 列表（建议）
+
+续写生成：
+```text
+丽日照残春
+春风得意马蹄疾
+大漠孤烟直
+两个黄鹂鸣翠柳
+床前明月光
+```
+
+藏头诗：
+```text
+深度学习
+人工智能
+春暖花开
+千古风流
+```
+
+### 13.5 注意事项
+
+- 所有模型必须使用**同一份数据切分**（`peot_cleaned_*.txt`），不要重新划分
+- 控制变量：随机种子固定为 `123`、相同 batch_size、相同 max_len
+- PoetryModel3 训练前会自动下载 RoBERTa 预训练模型（首次需联网）
+- 不要用测试集选择最佳 epoch，用验证集
+- 横向比较必须在同一个 split_strategy 下进行
+- 当前 `config.py` 中 `do_train=True`，跑 `python main.py` 即可开始训练 PoetryModel3

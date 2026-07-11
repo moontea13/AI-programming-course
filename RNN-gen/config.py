@@ -51,3 +51,8 @@ class Config:
 
         # --- 学习率调度 ---
         self.lr_scheduler = 'cosine'   # 'cosine' / 'plateau' / None
+
+        # --- 早停 ---
+        self.early_stopping = True
+        self.patience = 5              # 连续N个epoch验证损失不降则停止
+        self.min_delta = 1e-4          # 改善的最小阈值

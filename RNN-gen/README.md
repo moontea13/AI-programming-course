@@ -1,73 +1,120 @@
-# pytorch_peot_rnn
-基于pytorch_rnn的古诗词生成
+# RNN-gen：基于 PyTorch 的古诗词生成
 
-# 说明
-config.py里面含有训练、测试、预测的参数，更改后运行：
-```python
+基于 LSTM Encoder-Decoder + Attention 的古诗词生成，支持续写和藏头诗。
+
+## 快速开始
+
+```bash
+pip install -r requirements.txt
 python main.py
 ```
 
-# 预测结果
-```python
-if config.do_predict:
-	result = trainer.generate('丽日照残春')
-	print("".join(result))
-	result = trainer.gen_acrostic('深度学习')
-	print("".join(result))
-	
-丽日照残春，
-风光摇落时。
-不知花发意，
-不得见春风。
+首次运行会自动下载 Classical Chinese RoBERTa 预训练模型（~400MB）。
 
-深山高下有余灵，万里无人见钓矶。
-度日茱萸人不得，一枝不得不相见。
-学舞一枝花落叶，不知何处是君王。
-习书不见金闺后，应是君王赐手间。
+## 项目结构
+
+```
+RNN-gen/
+├── config.py                    # 全部训练/推理配置
+├── main.py                      # 训练入口 + Trainer
+├── model.py                     # PoetryModel / PoetryModel2 / PoetryModel3
+├── process.py                   # 数据加载、词表构建、padding
+├── utils.py                     # 随机种子、日志、预训练embedding初始化
+├── data_cleaning_analysis.py    # 数据清洗、偏见分析、切分
+├── requirements.txt             # 全部依赖
+├── data/
+│   ├── tang/                    # 原始全唐诗 JSON
+│   ├── peot.txt                 # 清洗后全量数据
+│   └── cleaning_analysis/       # 固定切分 + 统计报告 + 图表
+├── checkpoints/                 # 模型保存
+└── tests/                       # 单元测试
 ```
 
-# 参考
-> https://github.com/chenyuntc/pytorch-book<br>
-其中第九章的古诗词生成，修改了以下地方：<br>
-1、重构了代码架构；<br>
-2、增加了数据集生成的过程；<br>
-3、RNN网络改为batch_first；<br>
-4、计算损失时不计算padding部分；<br>
+## 三种模型
 
-# 数据清洗与实验切分
+| 模型 | 架构 |
+|---|---|
+| **PoetryModel** | Embedding → BiLSTM(1层) → Linear |
+| **PoetryModel2** | Embedding → UniLSTM(2层) → Linear |
+| **PoetryModel3** | Embedding(预训练) → BiLSTM-Encoder(2层+残差) → UniLSTM-Decoder(2层+残差) → Bahdanau Attention → Linear |
 
-先生成清洗后的语料、统计报告、图表和实验切分：
+当前默认使用 PoetryModel3。
+
+## 主要改进
+
+### 模型结构
+- Encoder-Decoder 架构：双向编码 + 单向解码
+- 每层 LSTM 加残差连接，防止深层退化
+- Bahdanau Attention：解码时动态关注编码器各位置
+
+### 预训练 Embedding
+- 使用 `KoichiYasuoka/roberta-classical-chinese-base-char` 初始化
+- 文言文预训练的 RoBERTa，与唐诗分布匹配
+
+### 训练策略
+- Label Smoothing (0.1)
+- Gradient Clipping (max_norm=5.0)
+- Cosine Annealing LR Scheduler
+- Scheduled Sampling (teacher forcing 1.0 → 0.2)
+- Early Stopping (patience=5)
+
+### 推理
+- Temperature + Top-p (nucleus) sampling
+- 支持续写生成和藏头诗两种模式
+
+## 配置说明
+
+`config.py` 关键参数：
 
 ```python
+# 训练/推理开关
+self.do_train = True       # 训练
+self.do_test = True        # 测试集评估
+self.do_predict = True     # 生成示例
+self.do_load_model = False # 是否加载已有checkpoint
+
+# 模型超参
+self.embedding_dim = 768   # 预训练embedding维度
+self.hidden_dim = 512
+self.num_epoch = 20
+self.batch_size = 128
+
+# 生成控制
+self.temperature = 0.8     # 越小越保守，越大越随机
+self.top_p = 0.9           # nucleus sampling 阈值
+
+# 早停
+self.early_stopping = True
+self.patience = 5
+```
+
+## 数据
+
+使用 `data/cleaning_analysis/` 下的固定切分：
+
+| 集合 | 样本数 |
+|---:|---:|
+| train | 47,851 |
+| valid | 5,880 |
+| test | 6,074 |
+
+词表只从训练集构建，未见字映射为 UNK。
+
+## 数据清洗
+
+```bash
 python data_cleaning_analysis.py
 ```
 
-输出目录为 `data/cleaning_analysis/`，其中包括：
+输出：清洗后语料、统计报告、可视化图表、固定切分文件。
 
-```text
-peot_cleaned_train.txt / peot_cleaned_valid.txt / peot_cleaned_test.txt
-peot_author_holdout_train.txt / peot_author_holdout_valid.txt / peot_author_holdout_test.txt
-train_sample_weights.csv
-author_holdout_train_sample_weights.csv
-bias_report.md
-figures/
-```
+## 参考
 
-在 `config.py` 中选择实验设置：
+基于 [pytorch-book](https://github.com/chenyuntc/pytorch-book) 第九章改进，主要变更：
+- 重构代码架构，Encoder-Decoder + Attention
+- 预训练 Classical Chinese RoBERTa embedding
+- Scheduled sampling + early stopping
+- batch_first、padding不计损失
+- 繁简转换、数据清洗、偏见分析
 
-```python
-# 文本级切分：评估同一唐诗分布中的未见文本
-config.split_strategy = 'text'
-
-# 作者级 holdout：评估未见作者风格上的泛化
-config.split_strategy = 'author_holdout'
-
-# 作者再平衡采样：与普通随机采样做对照实验
-config.use_author_weighted_sampling = True
-```
-
-词表只使用训练集构建；验证集和测试集的未见字会映射为 `UNK`，避免数据泄漏。
-
-完整的改动说明、数据统计、实验配置和复现步骤见 [EXPERIMENT_ENHANCEMENT.md](EXPERIMENT_ENHANCEMENT.md)。
-
-模型、训练和评价组员请阅读 [HANDOFF.md](HANDOFF.md)。
+完整文档见 [EXPERIMENT_ENHANCEMENT.md](EXPERIMENT_ENHANCEMENT.md) 和 [HANDOFF.md](HANDOFF.md)。

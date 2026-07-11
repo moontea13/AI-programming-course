@@ -53,6 +53,7 @@ class Trainer:
         global_step = 0
         best_valid_loss = float("inf")
         best_epoch = None
+        patience_counter = 0
         total_step = len(train_loader) * self.config.num_epoch
         for epoch in range(1, self.config.num_epoch + 1):
             total_loss = 0.
@@ -106,14 +107,25 @@ class Trainer:
 
             if valid_loader is not None:
                 valid_loss = self.test(valid_loader)
-                if valid_loss < best_valid_loss:
-                    torch.save(self.model.state_dict(), self.config.save_path)
+                if valid_loss < best_valid_loss - self.config.min_delta:
                     best_valid_loss = valid_loss
                     best_epoch = epoch
-                logger.info('epoch:{} valid_loss:{:.4f}'.format(epoch, valid_loss))
+                    patience_counter = 0
+                    torch.save(self.model.state_dict(), self.config.save_path)
+                    logger.info('epoch:{} valid_loss:{:.4f} (best, saved)'.format(epoch, valid_loss))
+                else:
+                    patience_counter += 1
+                    logger.info('epoch:{} valid_loss:{:.4f} (no improvement, patience={}/{})'.format(
+                        epoch, valid_loss, patience_counter, self.config.patience
+                    ))
 
                 if scheduler is not None and isinstance(scheduler, optim.lr_scheduler.ReduceLROnPlateau):
                     scheduler.step(valid_loss)
+
+                # Early stopping
+                if self.config.early_stopping and patience_counter >= self.config.patience:
+                    logger.info('Early stopping triggered at epoch {}'.format(epoch))
+                    break
 
             self.ss_prob = max(self.config.ss_end_prob, self.ss_prob - self.ss_decay)
 
