@@ -34,9 +34,9 @@ RNN-gen/
 
 | 模型 | 架构 |
 |---|---|
-| **PoetryModel** | Embedding → BiLSTM(1层) → Linear |
+| **PoetryModel** | Embedding → UniLSTM(1层) → Linear |
 | **PoetryModel2** | Embedding → UniLSTM(2层) → Linear |
-| **PoetryModel3** | Embedding(预训练) → BiLSTM-Encoder(2层+残差) → UniLSTM-Decoder(2层+残差) → Bahdanau Attention → Linear |
+| **PoetryModel3** | Embedding(预训练) → UniLSTM-Encoder(2层+残差) → UniLSTM-Decoder(2层+残差) → 因果 Bahdanau Attention → Linear |
 
 当前默认使用 PoetryModel3。
 
@@ -118,3 +118,30 @@ python data_cleaning_analysis.py
 - 繁简转换、数据清洗、偏见分析
 
 完整文档见 [EXPERIMENT_ENHANCEMENT.md](EXPERIMENT_ENHANCEMENT.md) 和 [HANDOFF.md](HANDOFF.md)。
+
+## 可复现实验
+
+旧的五轮快速实验已归档。HANDOFF 第 7、8、13 节正式实验按以下顺序执行：
+
+```powershell
+python tune.py --trials 6 --epochs 5
+python experiment.py run-suite --suite handoff_full
+python experiment.py ai-score --suite handoff_full
+python experiment.py report --suite handoff_full
+```
+
+训练中断后，从各实验最后完成的 epoch 恢复：
+
+```powershell
+python experiment.py run-suite --suite handoff_full --resume
+```
+
+也可以单独运行或重新评价一个模型：
+
+```powershell
+python experiment.py run --experiment poetry3_causal
+python experiment.py evaluate --suite handoff_full
+python experiment.py report --suite handoff_full
+```
+
+完整 checkpoint 保存于 `checkpoints/`，JSON、逐 epoch loss、固定 prompt、调参记录、AI 模拟盲评、对比图和最终报告保存于 `results/`。AI 模拟评价不等同于真人盲评。

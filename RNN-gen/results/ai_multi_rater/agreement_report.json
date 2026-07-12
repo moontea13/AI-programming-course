@@ -1,0 +1,32 @@
+{
+  "evaluator_type": "AI multi-rater simulated evaluation",
+  "rater_count": 3,
+  "sample_count": 81,
+  "dimensions": {
+    "fluency": {
+      "icc_2_1": 0.6422915696320443,
+      "icc_2_k": 0.843425076452599,
+      "low_agreement": false
+    },
+    "imagery": {
+      "icc_2_1": 0.7008413836086008,
+      "icc_2_k": 0.8754379135850525,
+      "low_agreement": false
+    },
+    "relevance": {
+      "icc_2_1": 0.8010788941335132,
+      "icc_2_k": 0.9235553252137859,
+      "low_agreement": false
+    },
+    "structure": {
+      "icc_2_1": 0.661184951565668,
+      "icc_2_k": 0.8541080609176448,
+      "low_agreement": false
+    }
+  },
+  "pairwise_spearman": {
+    "rater_01__rater_02": 0.8574720746117518,
+    "rater_01__rater_03": 0.8893848378932417,
+    "rater_02__rater_03": 0.8862360087664358
+  }
+}

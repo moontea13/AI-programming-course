@@ -1,0 +1,11 @@
+{
+  "selection_metric": "best_valid_loss",
+  "source_trial": 4,
+  "parameters": {
+    "hidden_dim": 512,
+    "lr": 0.001,
+    "effective_batch_size": 32
+  },
+  "best_valid_loss": 5.580120242320401,
+  "train_seconds": 325.1595140000063
+}

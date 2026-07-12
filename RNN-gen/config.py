@@ -28,7 +28,7 @@ class Config:
         self.do_load_model = False
 
         self.num_epoch = 20
-        self.batch_size = 128
+        self.batch_size = 32
         self.lr = 1e-3
         self.weight_decay = 1e-4
         self.max_gen_len = 200

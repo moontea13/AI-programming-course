@@ -18,6 +18,11 @@ env/
 *.log
 *.sqlite3
 
+# Local experiment artifacts
+.pytest*/
+checkpoints/*.pt
+checkpoints/**/*.pt
+
 # Environment variables
 .env
 .env.local

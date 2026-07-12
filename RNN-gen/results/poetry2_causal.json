@@ -1,0 +1,360 @@
+{
+  "schema_version": 1,
+  "experiment_id": "poetry2_causal",
+  "spec": {
+    "experiment_id": "poetry2_causal",
+    "model_type": "poetry2",
+    "recipe": "handoff_full",
+    "architecture": "Embedding -> UniLSTM(2 layers) -> Linear",
+    "embedding_dim": 768,
+    "hidden_dim": 512,
+    "use_pretrained_embeddings": true,
+    "label_smoothing": 0.1,
+    "grad_clip": 5.0,
+    "lr_scheduler": "cosine",
+    "scheduled_sampling": true,
+    "split_strategy": "text",
+    "use_author_weighted_sampling": false,
+    "seed": 123,
+    "num_epoch": 20,
+    "batch_size": 32,
+    "effective_batch_size": 32,
+    "gradient_accumulation_steps": 1,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "max_len": 125,
+    "max_gen_len": 200,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "ss_start_prob": 1.0,
+    "ss_end_prob": 0.2,
+    "early_stopping": true,
+    "patience": 5,
+    "min_delta": 0.0001
+  },
+  "runtime": {
+    "device": "NVIDIA GeForce RTX 5070 Laptop GPU",
+    "train_seconds": 1149.9209622999988
+  },
+  "training": {
+    "history": [
+      {
+        "epoch": 1,
+        "train_loss": 6.664930515591496,
+        "valid_loss": 5.969710100711071,
+        "learning_rate": 0.0009938441702975697,
+        "ss_prob": 1.0,
+        "duration_seconds": 52.95056130000012
+      },
+      {
+        "epoch": 2,
+        "train_loss": 6.230815341953006,
+        "valid_loss": 5.586507338739903,
+        "learning_rate": 0.0009755282581475773,
+        "ss_prob": 0.9578947368421052,
+        "duration_seconds": 67.4334233000045
+      },
+      {
+        "epoch": 3,
+        "train_loss": 6.0615371794141835,
+        "valid_loss": 5.474754734433802,
+        "learning_rate": 0.0009455032620941848,
+        "ss_prob": 0.9157894736842105,
+        "duration_seconds": 67.51051459999871
+      },
+      {
+        "epoch": 4,
+        "train_loss": 6.00388195277469,
+        "valid_loss": 5.4075699399696715,
+        "learning_rate": 0.0009045084971874741,
+        "ss_prob": 0.8736842105263157,
+        "duration_seconds": 67.50387360000605
+      },
+      {
+        "epoch": 5,
+        "train_loss": 5.973064557813485,
+        "valid_loss": 5.371687352935974,
+        "learning_rate": 0.0008535533905932754,
+        "ss_prob": 0.831578947368421,
+        "duration_seconds": 67.64244089999556
+      },
+      {
+        "epoch": 6,
+        "train_loss": 5.953763966336837,
+        "valid_loss": 5.348861861284382,
+        "learning_rate": 0.0007938926261462404,
+        "ss_prob": 0.7894736842105262,
+        "duration_seconds": 67.43854819999979
+      },
+      {
+        "epoch": 7,
+        "train_loss": 5.94495667274968,
+        "valid_loss": 5.3316642756561885,
+        "learning_rate": 0.0007269952498697772,
+        "ss_prob": 0.7473684210526315,
+        "duration_seconds": 67.54509840000537
+      },
+      {
+        "epoch": 8,
+        "train_loss": 5.94289577252594,
+        "valid_loss": 5.320336113307543,
+        "learning_rate": 0.0006545084971874761,
+        "ss_prob": 0.7052631578947367,
+        "duration_seconds": 67.56033310000203
+      },
+      {
+        "epoch": 9,
+        "train_loss": 5.940782299535581,
+        "valid_loss": 5.3178008021054834,
+        "learning_rate": 0.000578217232520117,
+        "ss_prob": 0.663157894736842,
+        "duration_seconds": 67.44413019999774
+      },
+      {
+        "epoch": 10,
+        "train_loss": 5.94084321039253,
+        "valid_loss": 5.312364481187278,
+        "learning_rate": 0.0004999999999999989,
+        "ss_prob": 0.6210526315789472,
+        "duration_seconds": 67.39952889999404
+      },
+      {
+        "epoch": 11,
+        "train_loss": 5.941960605038895,
+        "valid_loss": 5.301474381100079,
+        "learning_rate": 0.0004217827674798831,
+        "ss_prob": 0.5789473684210524,
+        "duration_seconds": 67.58046509999986
+      },
+      {
+        "epoch": 12,
+        "train_loss": 5.944474309041677,
+        "valid_loss": 5.297884723615244,
+        "learning_rate": 0.0003454915028125255,
+        "ss_prob": 0.5368421052631577,
+        "duration_seconds": 67.71265219999623
+      },
+      {
+        "epoch": 13,
+        "train_loss": 5.945491836548734,
+        "valid_loss": 5.307583615549658,
+        "learning_rate": 0.00027300475013022603,
+        "ss_prob": 0.4947368421052629,
+        "duration_seconds": 67.73852260000422
+      },
+      {
+        "epoch": 14,
+        "train_loss": 5.947109939790919,
+        "valid_loss": 5.313160642260453,
+        "learning_rate": 0.00020610737385376278,
+        "ss_prob": 0.45263157894736816,
+        "duration_seconds": 67.61817120000342
+      },
+      {
+        "epoch": 15,
+        "train_loss": 5.949612427460414,
+        "valid_loss": 5.3107164677288585,
+        "learning_rate": 0.00014644660940672541,
+        "ss_prob": 0.4105263157894734,
+        "duration_seconds": 77.32707780000055
+      },
+      {
+        "epoch": 16,
+        "train_loss": 5.951307516710286,
+        "valid_loss": 5.320013087861702,
+        "learning_rate": 9.549150281252539e-05,
+        "ss_prob": 0.36842105263157865,
+        "duration_seconds": 68.4887213999973
+      },
+      {
+        "epoch": 17,
+        "train_loss": 5.954256574688474,
+        "valid_loss": 5.32694053253073,
+        "learning_rate": 5.449673790581606e-05,
+        "ss_prob": 0.3263157894736839,
+        "duration_seconds": 67.98742489999859
+      }
+    ],
+    "best_epoch": 12,
+    "best_valid_loss": 5.297884723615244
+  },
+  "test": {
+    "loss": 5.315657934530471,
+    "perplexity": 203.4983576899586
+  },
+  "generation_metrics": {
+    "distinct_1": 0.579520697167756,
+    "distinct_2": 0.990990990990991,
+    "repetition_rate": 0.0,
+    "acrostic_accuracy": 0.9583333333333334,
+    "acrostic_completion_rate": 0.9583333333333334
+  },
+  "generated": [
+    {
+      "task": "continuation",
+      "prompt": "丽日照残春",
+      "seed": 123,
+      "text": "丽日照残春，萦云雨吹回。独随黄叶卷，飞睡舞燕蝉。春天独前望，迟明思路沈。欲知惊梦在，水暮夜何秋"
+    },
+    {
+      "task": "continuation",
+      "prompt": "春风得意马蹄疾",
+      "seed": 123,
+      "text": "春风得意马蹄疾，入北还高白马行。云雨昼云江上接，春风深处影愁频。古头已过山山远，故国行喧尽故乡。犹忆碧云愁"
+    },
+    {
+      "task": "continuation",
+      "prompt": "大漠孤烟直",
+      "seed": 123,
+      "text": "大漠孤烟直似邻，青舟飞笛雪当醒。若疑宫里初相立，不去人人独自携"
+    },
+    {
+      "task": "continuation",
+      "prompt": "两个黄鹂鸣翠柳",
+      "seed": 123,
+      "text": "两个黄鹂鸣翠柳，绿江风笛罢香枝。宫中好静无相思，点花花前不不为"
+    },
+    {
+      "task": "continuation",
+      "prompt": "床前明月光",
+      "seed": 123,
+      "text": "床前明月光重，，殿户望漏路中更。一向故人兼别去，不知吾不作楼中"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "深度学习",
+      "seed": 123,
+      "text": "深公城已央，歌凤下来行。度首花啼柳，秋流野草深。学书秋竹沼，情人树水丝。习书今不士，何处更无诗"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "人工智能",
+      "seed": 123,
+      "text": "人声好意大，岛上水潮吟。工子中长见，风来日夕难。智心无自是，尽野客同流。能问山中尽，何须似暮长"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "春暖花开",
+      "seed": 123,
+      "text": "春风送君多，公安杳不同。暖春江畔雨，天地晓云霜。花落侵舟岸，风溪入面开。开珠愿将泪，终日借故人"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "千古风流",
+      "seed": 123,
+      "text": "千里归西望，行声负陇云。古闻乘四望，日水上兰峦。风草生相思，应君不自频。流光渐开月，深细欲还愁。"
+    },
+    {
+      "task": "continuation",
+      "prompt": "丽日照残春",
+      "seed": 456,
+      "text": "丽日照残春，春池宿雁来。初圆侵岸影，乱暖出浮风。月色深疎露，松云远气香。登楼观上路，行入共何从"
+    },
+    {
+      "task": "continuation",
+      "prompt": "春风得意马蹄疾",
+      "seed": 456,
+      "text": "春风得意马蹄疾，月细风吹起竹梅。马客不知余去梦，女心伤得见愁人"
+    },
+    {
+      "task": "continuation",
+      "prompt": "大漠孤烟直",
+      "seed": 456,
+      "text": "大漠孤烟直有群，虎梁玉凤步分横。归时梦岭山还识，见向江人满北风"
+    },
+    {
+      "task": "continuation",
+      "prompt": "两个黄鹂鸣翠柳",
+      "seed": 456,
+      "text": "两个黄鹂鸣翠柳，池娥秋事草中多。雨花晴渐满头影，月影无时真起天。红凤暗随春不放，浅花天意镜中空。岂今华露公题句，乍欲香香饮酒钿"
+    },
+    {
+      "task": "continuation",
+      "prompt": "床前明月光",
+      "seed": 456,
+      "text": "床前明月光，明彩通平光。金妃难白日，草柳不成新。夜桥黄鸟玉，半罢瀑云香。花花碧青泪，香房晴照寒。起寻日物里，深闭绿萝青。隐为百年事，仍疑门华前"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "深度学习",
+      "seed": 456,
+      "text": "深木无尘生，行人难自怜。度花难有病，不自与谁轻。学子难难须，迁途自渐多。习论何处事，频去好休何"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "人工智能",
+      "seed": 456,
+      "text": "人人花发寒，一地木经阴。工夫自无土，一点无有贤。智多若何日，不道无山时。能是蓬莱莱，爱君得可忘。"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "春暖花开",
+      "seed": 456,
+      "text": "春草未成回，年年还作山。暖临书子侣，山酒独行流。花落虽如报，湖春不自忘。开衣忘雨雪，今去有山州"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "千古风流",
+      "seed": 456,
+      "text": "千年万里礼，无足蜀山林。古寺堪无路，烟云入水流。风舟楚旧路，烟草隔山林。流水川原去，河城向客乡"
+    },
+    {
+      "task": "continuation",
+      "prompt": "丽日照残春",
+      "seed": 789,
+      "text": "丽日照残春，长差隔地禽。香含三溪白，朝卷青青松。薄晚都当恨，穷明正自愁。行看知一首，莫肯隔东回"
+    },
+    {
+      "task": "continuation",
+      "prompt": "春风得意马蹄疾",
+      "seed": 789,
+      "text": "春风得意马蹄疾，官业令儒明四南。不学少君持幕酒，几时忘子不沾恩"
+    },
+    {
+      "task": "continuation",
+      "prompt": "大漠孤烟直",
+      "seed": 789,
+      "text": "大漠孤烟直，东风落日回。穷山草木晚，沙树日行如。树色侵荒草，烟花助钓舟。更闲对月镜，前向与渔舟"
+    },
+    {
+      "task": "continuation",
+      "prompt": "两个黄鹂鸣翠柳",
+      "seed": 789,
+      "text": "两个黄鹂鸣翠柳，万年青水欲行人。长知七万诸侯守，七日楼深一客来"
+    },
+    {
+      "task": "continuation",
+      "prompt": "床前明月光",
+      "seed": 789,
+      "text": "床前明月光中地，杜女金盈花不不。风飞满院不吹芳，不见常疑好多赏"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "深度学习",
+      "seed": 789,
+      "text": "深从路舍远，远夕一西园。度雪猿声过，微风月夕中。学人逢赏法，却待静还贫。习得伤僧取，新看别赋书"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "人工智能",
+      "seed": 789,
+      "text": "人道一相亲，幽，亦到关山隔江头。工鸟已分新雨雨，朝公谁得最高名。智乡守德曾师哲，关蜀人心不不公。能问子生同弟子，数交波上长君师"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "春暖花开",
+      "seed": 789,
+      "text": "春风楼上转，随情不谁知。暖情风霁响，高步宿潮寒。花陌通飞露，人人尽占妆。开堪歌鼓咏，乡早折衣衣"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "千古风流",
+      "seed": 789,
+      "text": "千峰际灭不寻谈，莫问风回一一身。古戍扁舟多国老，月边无事觅长言"
+    }
+  ],
+  "checkpoints": {
+    "best": "D:\\temp\\4\\AI-programming-course\\RNN-gen\\checkpoints\\poetry2_causal.best.pt",
+    "last": "D:\\temp\\4\\AI-programming-course\\RNN-gen\\checkpoints\\poetry2_causal.last.pt"
+  }
+}

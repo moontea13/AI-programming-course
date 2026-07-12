@@ -1,0 +1,320 @@
+{
+  "schema_version": 1,
+  "experiment_id": "poetry1_causal",
+  "spec": {
+    "experiment_id": "poetry1_causal",
+    "model_type": "poetry1",
+    "recipe": "handoff_full",
+    "architecture": "Embedding -> UniLSTM(1 layer) -> Linear",
+    "embedding_dim": 768,
+    "hidden_dim": 512,
+    "use_pretrained_embeddings": true,
+    "label_smoothing": 0.1,
+    "grad_clip": 5.0,
+    "lr_scheduler": "cosine",
+    "scheduled_sampling": true,
+    "split_strategy": "text",
+    "use_author_weighted_sampling": false,
+    "seed": 123,
+    "num_epoch": 20,
+    "batch_size": 32,
+    "effective_batch_size": 32,
+    "gradient_accumulation_steps": 1,
+    "lr": 0.001,
+    "weight_decay": 0.0001,
+    "max_len": 125,
+    "max_gen_len": 200,
+    "temperature": 0.8,
+    "top_p": 0.9,
+    "ss_start_prob": 1.0,
+    "ss_end_prob": 0.2,
+    "early_stopping": true,
+    "patience": 5,
+    "min_delta": 0.0001
+  },
+  "runtime": {
+    "device": "NVIDIA GeForce RTX 5070 Laptop GPU",
+    "train_seconds": 676.4858556000036
+  },
+  "training": {
+    "history": [
+      {
+        "epoch": 1,
+        "train_loss": 6.468543257520512,
+        "valid_loss": 5.630664540562661,
+        "learning_rate": 0.0009938441702975697,
+        "ss_prob": 1.0,
+        "duration_seconds": 45.41391260000091
+      },
+      {
+        "epoch": 2,
+        "train_loss": 6.086555015604745,
+        "valid_loss": 5.479626797993666,
+        "learning_rate": 0.0009755282581475773,
+        "ss_prob": 0.9578947368421052,
+        "duration_seconds": 57.08955009999772
+      },
+      {
+        "epoch": 3,
+        "train_loss": 5.998388186528571,
+        "valid_loss": 5.3999591779306195,
+        "learning_rate": 0.0009455032620941848,
+        "ss_prob": 0.9157894736842105,
+        "duration_seconds": 57.037762300002214
+      },
+      {
+        "epoch": 4,
+        "train_loss": 5.9532639461750145,
+        "valid_loss": 5.357936213652896,
+        "learning_rate": 0.0009045084971874741,
+        "ss_prob": 0.8736842105263157,
+        "duration_seconds": 57.03145360000053
+      },
+      {
+        "epoch": 5,
+        "train_loss": 5.936898976999669,
+        "valid_loss": 5.323692125136726,
+        "learning_rate": 0.0008535533905932754,
+        "ss_prob": 0.831578947368421,
+        "duration_seconds": 57.16904490000161
+      },
+      {
+        "epoch": 6,
+        "train_loss": 5.932007638126009,
+        "valid_loss": 5.3254455529057605,
+        "learning_rate": 0.0007938926261462404,
+        "ss_prob": 0.7894736842105262,
+        "duration_seconds": 57.17085719999886
+      },
+      {
+        "epoch": 7,
+        "train_loss": 5.935160870085265,
+        "valid_loss": 5.318250291558465,
+        "learning_rate": 0.0007269952498697772,
+        "ss_prob": 0.7473684210526315,
+        "duration_seconds": 57.18071690000215
+      },
+      {
+        "epoch": 8,
+        "train_loss": 5.940839619810976,
+        "valid_loss": 5.331871015347724,
+        "learning_rate": 0.0006545084971874761,
+        "ss_prob": 0.7052631578947367,
+        "duration_seconds": 56.84298900000431
+      },
+      {
+        "epoch": 9,
+        "train_loss": 5.948460546968625,
+        "valid_loss": 5.323249592989402,
+        "learning_rate": 0.000578217232520117,
+        "ss_prob": 0.663157894736842,
+        "duration_seconds": 56.76068330000271
+      },
+      {
+        "epoch": 10,
+        "train_loss": 5.954590575009226,
+        "valid_loss": 5.3248726441072085,
+        "learning_rate": 0.0004999999999999989,
+        "ss_prob": 0.6210526315789472,
+        "duration_seconds": 57.10414039999887
+      },
+      {
+        "epoch": 11,
+        "train_loss": 5.963508133682564,
+        "valid_loss": 5.3382420413921,
+        "learning_rate": 0.0004217827674798831,
+        "ss_prob": 0.5789473684210524,
+        "duration_seconds": 57.675389000003634
+      },
+      {
+        "epoch": 12,
+        "train_loss": 5.9706641388138175,
+        "valid_loss": 5.340903586533644,
+        "learning_rate": 0.0003454915028125255,
+        "ss_prob": 0.5368421052631577,
+        "duration_seconds": 57.25017140000273
+      }
+    ],
+    "best_epoch": 7,
+    "best_valid_loss": 5.318250291558465
+  },
+  "test": {
+    "loss": 5.334021862807115,
+    "perplexity": 207.2699112134899
+  },
+  "generation_metrics": {
+    "distinct_1": 0.5865384615384616,
+    "distinct_2": 0.970074812967581,
+    "repetition_rate": 0.008912655971479501,
+    "acrostic_accuracy": 0.8125,
+    "acrostic_completion_rate": 0.8125
+  },
+  "generated": [
+    {
+      "task": "continuation",
+      "prompt": "丽日照残春",
+      "seed": 123,
+      "text": "丽日照残春，萦云雨吹回。独眠黄叶处，飞睡白云中。春露含丹气，清明影绣沈。欲知光上在，旧往夜愁中"
+    },
+    {
+      "task": "continuation",
+      "prompt": "春风得意马蹄疾",
+      "seed": 123,
+      "text": "春风得意马蹄疾，入北还高白雪来。云雨已分江上石，春风深处影愁听。古来已过山山远，诗至新年葬故家。犹忆碧云应肯见，曾缘相思在轩身"
+    },
+    {
+      "task": "continuation",
+      "prompt": "大漠孤烟直",
+      "seed": 123,
+      "text": "大漠孤烟直，流飞万里声。川笳扬白日，岸翠亦无星。白日尝为步，门灯坐自悲。相思金点泪，留赏九为才"
+    },
+    {
+      "task": "continuation",
+      "prompt": "两个黄鹂鸣翠柳",
+      "seed": 123,
+      "text": "两个黄鹂鸣翠柳，十二新桑。路中。不见相逢失远客，莫愁那送不声心"
+    },
+    {
+      "task": "continuation",
+      "prompt": "床前明月光",
+      "seed": 123,
+      "text": "床前明月光，灯帘已五凋。一枝自九陌，花尽有深枝"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "深度学习",
+      "seed": 123,
+      "text": "深野幽情在在秋，碧烟情人树千回。度昏芳雨南楼夜，草是孤窗声下孤"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "人工智能",
+      "seed": 123,
+      "text": "人汉郡陵郎，春风吹露长。工声轻暮日，上柳喜秋花"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "春暖花开",
+      "seed": 123,
+      "text": "春光尽野客，猿绪拥山香。暖会青山出，长青锦树声。花花飘水玉，罗树映江波。开户天烟去，孤阳落暮还。"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "千古风流",
+      "seed": 123,
+      "text": "千年初发发，开竹长安将。古向酒长笑，多妨减莫生。风深已当处，云吹恨全迟。流若随心上，谁知有里年"
+    },
+    {
+      "task": "continuation",
+      "prompt": "丽日照残春",
+      "seed": 456,
+      "text": "丽日照残春，春风歌歌声。初及岁色啼，乱来无渐非。年过雪中月，一席及南洲。旅绝观河路，行来无何从"
+    },
+    {
+      "task": "continuation",
+      "prompt": "春风得意马蹄疾",
+      "seed": 456,
+      "text": "春风得意马蹄疾，月细风吹客竹残。马客不知还在梦，春心伤泪见愁悲"
+    },
+    {
+      "task": "continuation",
+      "prompt": "大漠孤烟直",
+      "seed": 456,
+      "text": "大漠孤烟直，收君虎马稀。泉分横水密，花岭上营船。岳兆多人事，身生甚有人。事人中外事，唯想不相怜"
+    },
+    {
+      "task": "continuation",
+      "prompt": "两个黄鹂鸣翠柳",
+      "seed": 456,
+      "text": "两个黄鹂鸣翠柳，三平无破白风天。红塘暗负春年少，日后天中镜烛空"
+    },
+    {
+      "task": "continuation",
+      "prompt": "床前明月光",
+      "seed": 456,
+      "text": "床前明月光，露华露露声。明明欲向月，春雨发残明"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "深度学习",
+      "seed": 456,
+      "text": "深通平信春风草，白日青草柳不开。度日夜来黄鸟后，半时飞夕上山花。学君不得门门事，拔发何曾住日程。习听深林无惆怅，隐苏疑是是能啼"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "人工智能",
+      "seed": 456,
+      "text": "人闻青峡起，山影有回行。工女无何处，孤苔病未时。智回徒太药，灯句本为机。能与朝朝者，何须更待频"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "春暖花开",
+      "seed": 456,
+      "text": "春风休何日，花色寒阴空。暖木经阴雨，轻阴凝故人。花禽城远院，罗柳劒愁多。开上山风月，河西万里春。"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "千古风流",
+      "seed": 456,
+      "text": "千里可忘意有生，千年年出欲行山。古今犹是南山路，渔客相逢别到花"
+    },
+    {
+      "task": "continuation",
+      "prompt": "丽日照残春",
+      "seed": 789,
+      "text": "丽日照残春，雨后隔春风。香罢三溪白，朝明青缕间。薄心都白日，时没正天秋。自见知相思，莫能从此时"
+    },
+    {
+      "task": "continuation",
+      "prompt": "春风得意马蹄疾",
+      "seed": 789,
+      "text": "春风得意马蹄疾，又向莺啼醉鴈花。不学少君持幕酒，几年忘子不沾孙"
+    },
+    {
+      "task": "continuation",
+      "prompt": "大漠孤烟直",
+      "seed": 789,
+      "text": "大漠孤烟直，东风落日回。穷随野旅晚，随夕日行时。树色枯杨柳，烟花满树枝。不知陵马意，公亦与花霖"
+    },
+    {
+      "task": "continuation",
+      "prompt": "两个黄鹂鸣翠柳",
+      "seed": 789,
+      "text": "两个黄鹂鸣翠柳，万年青雨欲行人。千门七万诸侯家，七日楼前一五家"
+    },
+    {
+      "task": "continuation",
+      "prompt": "床前明月光",
+      "seed": 789,
+      "text": "床前明月光中地，杜女金盈为客神。风雁满城行不起，杨柳为客好多行"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "深度学习",
+      "seed": 789,
+      "text": "深从路舍远，唯是一西园。度雪城楼下，微风月夕中。学人当赏法，却待静齐容。习得伤才取，新诗在寿真"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "人工智能",
+      "seed": 789,
+      "text": "人道一相亲，幽，又到关头隔旧枝。工鸟已分新雨雨，朝灯谁得最高词"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "春暖花开",
+      "seed": 789,
+      "text": "春风渡海下，宿作生湖原。暖兀不爱寒，飞云共何寻。花花玉波上，君羡我莫眠"
+    },
+    {
+      "task": "acrostic",
+      "prompt": "千古风流",
+      "seed": 789,
+      "text": "千里夜随戍，春光入楚乡。古人光有远，一日为生通。风露倚峰字，清风媚竹声。流香有乡早，不觉一时情"
+    }
+  ],
+  "checkpoints": {
+    "best": "D:\\temp\\4\\AI-programming-course\\RNN-gen\\checkpoints\\poetry1_causal.best.pt",
+    "last": "D:\\temp\\4\\AI-programming-course\\RNN-gen\\checkpoints\\poetry1_causal.last.pt"
+  }
+}
